@@ -1,6 +1,7 @@
-from config.settings import DATABASE
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
+
+from config.settings import DATABASE
 
 db_schema = str(DATABASE['SCHEMA'])
 

@@ -2,10 +2,11 @@ import logging
 from contextlib import contextmanager
 from typing import Generator, Optional
 
-from config.settings import DATABASE, DEBUG
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
+
+from config.settings import DATABASE, DEBUG
 from utils.generics import Generics
 
 # Configurar logging

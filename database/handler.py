@@ -2,10 +2,11 @@ import logging
 import urllib.parse
 from contextlib import contextmanager
 
-from config.settings import DATABASE
-from database.base import Base
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+
+from config.settings import DATABASE
+from database.base import Base
 
 logger = logging.getLogger(__name__)
 

@@ -1,10 +1,11 @@
 import logging
 from typing import Any, Mapping, Optional, Tuple, Union
 
-from config.settings import DATABASE
 from sqlalchemy import text
 from sqlalchemy.engine import Result
 from sqlalchemy.exc import SQLAlchemyError
+
+from config.settings import DATABASE
 from utils.conversions import Conversions
 from utils.local_menus import NoYes
 

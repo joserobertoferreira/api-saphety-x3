@@ -2,6 +2,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from decouple import config
+
 from utils.generics import Generics
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -67,3 +68,13 @@ if email_user and email_user.strip():
 
     EMAIL_RECIPIENTS = config_emails.get('send_to', [])
     EMAIL_COPIES = config_emails.get('send_cc', [])
+
+# Schedule settings
+SCHEDULING = {
+    'ENABLED': config('SCHEDULE_ENABLED', default=True, cast=bool),
+    # Timetable for scheduling
+    'START_TIME': config('SCHEDULE_START_TIME', default='08:00', cast=str),
+    'END_TIME': config('SCHEDULE_END_TIME', default='18:00', cast=str),
+    # Execution interval in minutes
+    'INTERVAL_MINUTES': config('SCHEDULE_INTERVAL_MINUTES', default=60, cast=int),
+}

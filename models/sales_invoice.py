@@ -3,10 +3,11 @@ import decimal
 
 from sqlalchemy import DateTime, Index, Integer, Numeric, PrimaryKeyConstraint, SmallInteger, Unicode, text
 from sqlalchemy.dialects.mssql import TINYINT
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from config.settings import DATABASE, DB_COLLATION, DEFAULT_LEGACY_DATETIME
 from database.base import Base
+from models.customer import Customer
 from models.generics_mixins import ArrayColumnMixin
 from models.mixins import AuditMixin, CreateUpdateDateMixin, DimensionMixin, DimensionTypesMixin, PrimaryKeyMixin
 
@@ -774,3 +775,12 @@ class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin, Dim
     )
     hasElectronicSignature: Mapped[int] = mapped_column('SIHCFMFLG_0', TINYINT, default=text('((0))'))
     isCiusPT: Mapped[int] = mapped_column('YCIUSFLG_0', TINYINT, default=text('((1))'))
+
+    customer: Mapped['Customer'] = relationship(
+        'Customer',
+        primaryjoin='foreign(SalesInvoice.billToCustomer) == Customer.customerCode',
+        back_populates=None,  # Não precisamos de um relacionamento de volta em BPCUSTOMER
+        lazy='joined',  # Carrega o cliente automaticamente com um JOIN
+        viewonly=True,  # Recomendado: torna a relação "read-only"
+        uselist=False,  # Garante que `invoice.customer` é um objeto, não uma lista
+    )

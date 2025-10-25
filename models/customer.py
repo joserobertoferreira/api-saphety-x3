@@ -11,7 +11,7 @@ from models.generics_mixins import ArrayColumnMixin
 from models.mixins import AuditMixin, CreateUpdateDateMixin, DimensionMixin, DimensionTypesMixin, PrimaryKeyMixin
 
 
-class BPCUSTOMER(
+class Customer(
     Base,
     AuditMixin,
     PrimaryKeyMixin,
