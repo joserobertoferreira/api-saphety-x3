@@ -1,5 +1,6 @@
 import datetime
 import decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Index, Integer, Numeric, PrimaryKeyConstraint, SmallInteger, Unicode, text
 from sqlalchemy.dialects.mssql import TINYINT
@@ -7,9 +8,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from config.settings import DATABASE, DB_COLLATION, DEFAULT_LEGACY_DATETIME
 from database.base import Base
-from models.customer import Customer
-from models.generics_mixins import ArrayColumnMixin
-from models.mixins import AuditMixin, CreateUpdateDateMixin, DimensionMixin, DimensionTypesMixin, PrimaryKeyMixin
+
+from .generics_mixins import ArrayColumnMixin
+from .mixins import AuditMixin, CreateUpdateDateMixin, DimensionMixin, DimensionTypesMixin, PrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from .cius_pt_control import CiusPTControl
+    from .customer import Customer
 
 
 class CustomerInvoiceHeader(
@@ -218,7 +223,7 @@ class CustomerInvoiceHeader(
 
     _properties, _columns = ArrayColumnMixin.create_array_property(
         db_column_prefix='BASTAX',
-        property_name='taxBasie',
+        property_name='taxBase',
         count=10,
         column_type=Numeric,
         column_args=(27, 13),
@@ -394,14 +399,14 @@ class CustomerInvoiceHeader(
     isCiusPT: Mapped[int] = mapped_column('YCIUSFLG_0', TINYINT, default=text('((1))'))
 
 
-class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin, DimensionTypesMixin, DimensionMixin):
+class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
     __tablename__ = 'SINVOICEV'
     __table_args__ = (
         PrimaryKeyConstraint('ROWID', name='SINVOICEV_ROWID'),
         Index('SINVOICEV_SIV0', 'NUM_0', unique=True),
         Index('SINVOICEV_SIV1', 'SIHORI_0', 'SIHORINUM_0'),
         Index('SINVOICEV_SIV2', 'INVTYP_0', 'NUM_0', unique=True),
-        {'schema': 'dbo'},
+        {'schema': f'{DATABASE["SCHEMA"]}'},
     )
 
     invoiceNumber: Mapped[str] = mapped_column('NUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
@@ -778,9 +783,16 @@ class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin, Dim
 
     customer: Mapped['Customer'] = relationship(
         'Customer',
-        primaryjoin='foreign(SalesInvoice.billToCustomer) == Customer.customerCode',
-        back_populates=None,  # Não precisamos de um relacionamento de volta em BPCUSTOMER
-        lazy='joined',  # Carrega o cliente automaticamente com um JOIN
-        viewonly=True,  # Recomendado: torna a relação "read-only"
-        uselist=False,  # Garante que `invoice.customer` é um objeto, não uma lista
+        primaryjoin='SalesInvoice.billToCustomer == foreign(Customer.customerCode)',
+        lazy='joined',
+        viewonly=True,
+        uselist=False,
+    )
+
+    control: Mapped['CiusPTControl'] = relationship(
+        'CiusPTControl',
+        primaryjoin='SalesInvoice.invoiceNumber == foreign(CiusPTControl.invoiceNumber)',
+        lazy='select',
+        viewonly=True,
+        uselist=False,
     )

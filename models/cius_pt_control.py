@@ -6,10 +6,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from config.settings import DATABASE, DB_COLLATION, DEFAULT_LEGACY_DATETIME
 from database.base import Base
-from models.mixins import AuditMixin, CreateUpdateDateMixin, PrimaryKeyMixin
+
+from .mixins import AuditMixin, PrimaryKeyMixin
 
 
-class CiusPTControl(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
+class CiusPTControl(Base, AuditMixin, PrimaryKeyMixin):
     __tablename__ = 'YCIUSCTL'
     __table_args__ = (
         PrimaryKeyConstraint('ROWID', name='YCIUSCTL_ROWID'),

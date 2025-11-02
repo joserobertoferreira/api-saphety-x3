@@ -12,14 +12,19 @@ CLIENT_DIR = BASE_DIR / 'setup'
 
 # Database connection parameters
 DATABASE = {
-    'SERVER': config('DB_SERVER', default=' ', cast=str),
-    'DATABASE': config('DB_DATABASE', default=' ', cast=str),
-    'SCHEMA': config('DB_SCHEMA', default=' ', cast=str),
-    'USERNAME': config('DB_USERNAME', default=' ', cast=str),
-    'PASSWORD': config('DB_PASSWORD', default=' ', cast=str),
-    'DRIVER': config('DB_DRIVER', default='ODBC Driver 17 for SQL Server', cast=str),
+    'SERVER': str(config('DB_SERVER', default=' ', cast=str)),
+    'DATABASE': str(config('DB_DATABASE', default=' ', cast=str)),
+    'SCHEMA': str(config('DB_SCHEMA', default=' ', cast=str)),
+    'USERNAME': str(config('DB_USERNAME', default=' ', cast=str)),
+    'PASSWORD': str(config('DB_PASSWORD', default=' ', cast=str)),
+    'DRIVER': str(config('DB_DRIVER', default='ODBC Driver 17 for SQL Server', cast=str)),
     'TRUSTED_CONNECTION': config('DB_TRUSTED_CONNECTION', default='no', cast=str),
 }
+
+DATABASE_URL = (
+    f'mssql+pyodbc://{DATABASE["USERNAME"]}:{DATABASE["PASSWORD"]}@{DATABASE["SERVER"]}/{DATABASE["DATABASE"]}'
+    f'?driver={DATABASE["DRIVER"]}'
+)
 
 DB_COLLATION = str(config('DB_COLLATION', default='Latin1_General_BIN2', cast=str))
 
@@ -28,9 +33,9 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 # API connection parameters
 API = {
-    'BASE_URL': config('BASE_URL', default=' ', cast=str),
-    'APP_KEY': config('APP_KEY', default=' ', cast=str),
-    'APP_SECRET': config('APP_SECRET', default=' ', cast=str),
+    'BASE_URL': str(config('BASE_URL', default=' ', cast=str)),
+    'APP_KEY': str(config('APP_KEY', default=' ', cast=str)),
+    'APP_SECRET': str(config('APP_SECRET', default=' ', cast=str)),
 }
 
 # Logging configuration
@@ -53,10 +58,10 @@ DAYS_TO_SEARCH = config('DAYS_TO_SEARCH', default=30, cast=int)
 
 # Email configuration
 EMAIL_CONFIG = {
-    'EMAIL_USER': config('EMAIL_USER', default=' ', cast=str),
-    'USER': config('SMTP_USER', default=' ', cast=str),
-    'PASSWORD': config('EMAIL_PASSWORD', default=' ', cast=str),
-    'HOST': config('EMAIL_HOST', default='smtp.gmail.com', cast=str),
+    'EMAIL_USER': str(config('EMAIL_USER', default=' ', cast=str)),
+    'USER': str(config('SMTP_USER', default=' ', cast=str)),
+    'PASSWORD': str(config('EMAIL_PASSWORD', default=' ', cast=str)),
+    'HOST': str(config('EMAIL_HOST', default='smtp.gmail.com', cast=str)),
     'PORT': config('EMAIL_PORT', default=465, cast=int),
 }
 

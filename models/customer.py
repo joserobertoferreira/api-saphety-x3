@@ -1,14 +1,19 @@
 import datetime
 import decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Integer, Numeric, PrimaryKeyConstraint, SmallInteger, Unicode, text
 from sqlalchemy.dialects.mssql import TINYINT
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from config.settings import DATABASE, DB_COLLATION, DEFAULT_LEGACY_DATETIME
 from database.base import Base
-from models.generics_mixins import ArrayColumnMixin
-from models.mixins import AuditMixin, CreateUpdateDateMixin, DimensionMixin, DimensionTypesMixin, PrimaryKeyMixin
+
+from .generics_mixins import ArrayColumnMixin
+from .mixins import AuditMixin, CreateUpdateDateMixin, DimensionMixin, DimensionTypesMixin, PrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from .partner import BusinessPartner
 
 
 class Customer(
@@ -210,3 +215,12 @@ class Customer(
     )
     isElectronicInvoiceAllowed: Mapped[int] = mapped_column('AEIFLG_0', TINYINT, default=text('((0))'))
     ciusType: Mapped[int] = mapped_column('YCIUSTYP_0', TINYINT, default=text('((0))'))
+
+    business_partner: Mapped['BusinessPartner'] = relationship(
+        'BusinessPartner',
+        primaryjoin='foreign(Customer.customerCode) == BusinessPartner.code',
+        back_populates='customer',
+        lazy='joined',
+        viewonly=True,
+        uselist=False,
+    )

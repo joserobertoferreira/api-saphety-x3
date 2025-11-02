@@ -5,7 +5,7 @@ from config.logging import setup_logging
 
 # Importa a MESMA função de lógica de negócio que o serviço usa
 # TODO: No futuro, virá de 'services.processor'
-from service import process_pending_invoices
+from run_service import process_pending_invoices
 
 
 def main():

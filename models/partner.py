@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import (
     Index,
     Integer,
@@ -7,12 +9,16 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.mssql import TINYINT
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from config.settings import DATABASE, DB_COLLATION
 from database.base import Base
-from models.generics_mixins import ArrayColumnMixin
-from models.mixins import AuditMixin, CreateUpdateDateMixin, PrimaryKeyMixin
+
+from .generics_mixins import ArrayColumnMixin
+from .mixins import AuditMixin, CreateUpdateDateMixin, PrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from .customer import Customer
 
 
 class BusinessPartner(
@@ -117,4 +123,13 @@ class BusinessPartner(
     electronicInvoiceType: Mapped[int] = mapped_column('EINVTYP_0', SmallInteger, default=text('((0))'))
     invoicingMappingCode: Mapped[str] = mapped_column(
         'MAPCOD_0', Unicode(1, collation=DB_COLLATION), default=text("''")
+    )
+
+    customer: Mapped['Customer'] = relationship(
+        'Customer',
+        primaryjoin='BusinessPartner.code == foreign(Customer.customerCode)',
+        back_populates='business_partner',
+        lazy='joined',
+        viewonly=True,
+        uselist=False,
     )

@@ -209,6 +209,7 @@
     "MTCFLG",
     "NBRCPY",
     "NBRTAX",
+    "nsmap",
     "OCNFLG",
     "OPGNUM",
     "OPGTYP",
@@ -303,5 +304,6 @@
     "YCTL",
     "YSIH",
     "YSINVOICE"
-  ]
+  ],
+  "python-envs.pythonProjects": []
 }
