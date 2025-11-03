@@ -38,7 +38,7 @@ def main():
     try:
         processor = InvoiceProcessorService()
 
-        processor.process_pending_invoices(specific_invoice_id=args.invoice)
+        processor.process_pending_invoices(invoice_id=args.invoice)
 
         # if args.invoice:
         #     main_logger.info(f'Execução por demanda iniciada para a fatura específica: {args.invoice}')

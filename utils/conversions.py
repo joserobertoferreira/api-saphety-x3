@@ -2,12 +2,13 @@ import base64
 import hashlib
 import hmac
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from config.settings import DEFAULT_LEGACY_DATETIME
 from dateutil import parser
+
+from config.settings import DEFAULT_LEGACY_DATETIME
 
 
 class Conversions:
@@ -233,3 +234,30 @@ class Conversions:
                 return_value = DEFAULT_LEGACY_DATETIME
 
         return return_value
+
+    @staticmethod
+    def format_monetary(value: Optional[Decimal], num_decimals: int = 2) -> str:
+        """
+        Formats a value (ideally Decimal) into a monetary string
+        with a fixed number of decimal places, suitable for XML.
+
+        Args:
+            value: The numeric value to be formatted.
+            num_decimals: The desired number of decimal places (default is 2).
+
+        Returns:
+            A formatted string, e.g., "123.45". Returns "0.00" if the value is None.
+        """
+        if value is None:
+            # Ensure a default value if the DB data is NULL
+            value = Decimal('0')
+
+        # Create the dynamic formatting string, e.g., '0.00'
+        quantizer = Decimal('1e-' + str(num_decimals))
+
+        # Round to the correct number of places and convert to string
+        # The rounding=ROUND_HALF_UP is the default rounding (>= 5 rounds up)
+        formatted_value = value.quantize(quantizer, rounding=ROUND_HALF_UP)
+
+        # .to_eng_string() ensures that the output does not use scientific notation
+        return formatted_value.to_eng_string()

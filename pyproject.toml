@@ -16,7 +16,12 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["sqlacodegen>=3.0.0"]
+dev = [
+    "sqlacodegen>=3.0.0",
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-autodoc-typehints",
+]
 
 [tool.ruff]
 line-length = 120

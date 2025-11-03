@@ -398,6 +398,14 @@ class CustomerInvoiceHeader(
     automaticAutoInvoicingSpaGenerated: Mapped[int] = mapped_column('ISSAUTGEN_0', TINYINT, default=text('((0))'))
     isCiusPT: Mapped[int] = mapped_column('YCIUSFLG_0', TINYINT, default=text('((1))'))
 
+    details: Mapped[list['SalesInvoiceDetail']] = relationship(
+        'SalesInvoiceDetail',
+        primaryjoin='CustomerInvoiceHeader.invoiceNumber == foreign(SalesInvoiceDetail.invoiceNumber)',
+        lazy='select',
+        viewonly=True,
+        uselist=False,
+    )
+
 
 class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
     __tablename__ = 'SINVOICEV'
@@ -789,6 +797,14 @@ class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
         uselist=False,
     )
 
+    invoice_header: Mapped['CustomerInvoiceHeader'] = relationship(
+        'CustomerInvoiceHeader',
+        primaryjoin='SalesInvoice.invoiceNumber == foreign(CustomerInvoiceHeader.invoiceNumber)',
+        lazy='joined',
+        viewonly=True,
+        uselist=False,
+    )
+
     control: Mapped['CiusPTControl'] = relationship(
         'CiusPTControl',
         primaryjoin='SalesInvoice.invoiceNumber == foreign(CiusPTControl.invoiceNumber)',
@@ -796,3 +812,342 @@ class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
         viewonly=True,
         uselist=False,
     )
+
+
+class SalesInvoiceDetail(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
+    __tablename__ = 'SINVOICED'
+    __table_args__ = (
+        PrimaryKeyConstraint('ROWID', name='SINVOICED_ROWID'),
+        Index('SINVOICED_SID0', 'NUM_0', 'SIDLIN_0', unique=True),
+        Index('SINVOICED_SID1', 'BPCINV_0', 'SALFCY_0', 'NUM_0', 'SIDLIN_0', unique=True),
+        Index('SINVOICED_SID2', 'SOHNUM_0', 'CREDAT_0', 'NUM_0'),
+        Index('SINVOICED_SID3', 'SDHNUM_0', 'SDDLIN_0'),
+        Index('SINVOICED_SID4', 'CONNUM_0'),
+        Index('SINVOICED_SID5', 'SRHNUM_0'),
+        {'schema': f'{DATABASE["SCHEMA"]}'},
+    )
+
+    invoiceNumber: Mapped[str] = mapped_column('NUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    lineNumber: Mapped[int] = mapped_column('SIDLIN_0', Integer, default=text('((0))'))
+    company: Mapped[str] = mapped_column('CPY_0', Unicode(5, collation=DB_COLLATION), default=text("''"))
+    salesOrderNumber: Mapped[str] = mapped_column('SOHNUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    salesOrderLineNumber: Mapped[int] = mapped_column('SOPLIN_0', Integer, default=text('((0))'))
+    salesOrderSequenceNumber: Mapped[int] = mapped_column('SOQSEQ_0', Integer, default=text('((0))'))
+    salesDelivery: Mapped[str] = mapped_column('SDHNUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    salesDeliveryLineNumber: Mapped[int] = mapped_column('SDDLIN_0', Integer, default=text('((0))'))
+    serviceContractNumber: Mapped[str] = mapped_column(
+        'CONNUM_0', Unicode(20, collation=DB_COLLATION), default=text("''")
+    )
+    serviceRequest: Mapped[str] = mapped_column('SRENUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    stockTransferNumber: Mapped[str] = mapped_column(
+        'SGHNUM_0', Unicode(20, collation=DB_COLLATION), default=text("''")
+    )
+    sourceSalesInvoice: Mapped[str] = mapped_column(
+        'SIHORINUM_0', Unicode(20, collation=DB_COLLATION), default=text("''")
+    )
+    sourceSalesInvoiceLine: Mapped[int] = mapped_column('SIDORILIN_0', Integer, default=text('((0))'))
+    salesReturn: Mapped[str] = mapped_column('SRHNUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    salesReturnLine: Mapped[int] = mapped_column('SRDLIN_0', Integer, default=text('((0))'))
+    purchaseInvoiceLineNumber: Mapped[int] = mapped_column('PIDLIN_0', Integer, default=text('((0))'))
+    billToCustomer: Mapped[str] = mapped_column('BPCINV_0', Unicode(15, collation=DB_COLLATION), default=text("''"))
+    product: Mapped[str] = mapped_column('ITMREF_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    majorProductVersion: Mapped[str] = mapped_column(
+        'ECCVALMAJ_0', Unicode(1, collation=DB_COLLATION), default=text("''")
+    )
+    minorProductVersion: Mapped[str] = mapped_column(
+        'ECCVALMIN_0', Unicode(1, collation=DB_COLLATION), default=text("''")
+    )
+    productDescriptionUserLanguage: Mapped[str] = mapped_column(
+        'ITMDES1_0', Unicode(30, collation=DB_COLLATION), default=text("''")
+    )
+    productDescriptionCustomerLanguage: Mapped[str] = mapped_column(
+        'ITMDES_0', Unicode(30, collation=DB_COLLATION), default=text("''")
+    )
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='VACITM',
+        property_name='tax_level',
+        count=3,
+        column_type=Unicode,
+        column_args=(5, DB_COLLATION),
+        python_type=str,
+        server_default=text("''"),
+    )
+
+    taxLevels = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    sstTaxCode: Mapped[str] = mapped_column('SSTCOD_0', Unicode(1, collation=DB_COLLATION), default=text("''"))
+    salesRep1: Mapped[str] = mapped_column('REP1_0', Unicode(15, collation=DB_COLLATION), default=text("''"))
+    salesRep2: Mapped[str] = mapped_column('REP2_0', Unicode(15, collation=DB_COLLATION), default=text("''"))
+    salesRep1CommissionRate: Mapped[decimal.Decimal] = mapped_column('REPRAT1_0', Numeric(8, 3), default=text('((0))'))
+    salesRep2CommissionRate: Mapped[decimal.Decimal] = mapped_column('REPRAT2_0', Numeric(8, 3), default=text('((0))'))
+    salesRep1CommissionBase: Mapped[decimal.Decimal] = mapped_column(
+        'REPBAS1_0', Numeric(27, 13), default=text('((0))')
+    )
+    salesRep2CommissionBase: Mapped[decimal.Decimal] = mapped_column(
+        'REPBAS2_0', Numeric(27, 13), default=text('((0))')
+    )
+    salesRep1CommissionAmount: Mapped[decimal.Decimal] = mapped_column(
+        'REPAMT1_0', Numeric(27, 13), default=text('((0))')
+    )
+    salesRep2CommissionAmount: Mapped[decimal.Decimal] = mapped_column(
+        'REPAMT2_0', Numeric(27, 13), default=text('((0))')
+    )
+    salesRepCommissionFactor: Mapped[decimal.Decimal] = mapped_column('REPCOE_0', Numeric(6, 3), default=text('((0))'))
+    grossPrice: Mapped[decimal.Decimal] = mapped_column('GROPRI_0', Numeric(19, 5), default=text('((0))'))
+    priceReason: Mapped[int] = mapped_column('PRIREN_0', SmallInteger, default=text('((0))'))
+    netPrice: Mapped[decimal.Decimal] = mapped_column('NETPRI_0', Numeric(19, 5), default=text('((0))'))
+    netPriceExcludingTax: Mapped[decimal.Decimal] = mapped_column('NETPRINOT_0', Numeric(19, 5), default=text('((0))'))
+    netPriceIncludingTax: Mapped[decimal.Decimal] = mapped_column('NETPRIATI_0', Numeric(19, 5), default=text('((0))'))
+    margin: Mapped[decimal.Decimal] = mapped_column('PFM_0', Numeric(27, 13), default=text('((0))'))
+    costPrice: Mapped[decimal.Decimal] = mapped_column('CPRPRI_0', Numeric(19, 5), default=text('((0))'))
+    discountOrCharge1: Mapped[list[decimal.Decimal]] = mapped_column(
+        'DISCRGVAL1_0', Numeric(19, 5), default=text('((0))')
+    )
+    discountOrCharge2: Mapped[list[decimal.Decimal]] = mapped_column(
+        'DISCRGVAL2_0', Numeric(19, 5), default=text('((0))')
+    )
+    discountOrCharge3: Mapped[list[decimal.Decimal]] = mapped_column(
+        'DISCRGVAL3_0', Numeric(19, 5), default=text('((0))')
+    )
+    discountOrCharge4: Mapped[list[decimal.Decimal]] = mapped_column(
+        'DISCRGVAL4_0', Numeric(19, 5), default=text('((0))')
+    )
+    discountOrCharge5: Mapped[list[decimal.Decimal]] = mapped_column(
+        'DISCRGVAL5_0', Numeric(19, 5), default=text('((0))')
+    )
+    discountOrCharge6: Mapped[list[decimal.Decimal]] = mapped_column(
+        'DISCRGVAL6_0', Numeric(19, 5), default=text('((0))')
+    )
+    discountOrCharge7: Mapped[list[decimal.Decimal]] = mapped_column(
+        'DISCRGVAL7_0', Numeric(19, 5), default=text('((0))')
+    )
+    discountOrCharge8: Mapped[list[decimal.Decimal]] = mapped_column(
+        'DISCRGVAL8_0', Numeric(19, 5), default=text('((0))')
+    )
+    discountOrCharge9: Mapped[list[decimal.Decimal]] = mapped_column(
+        'DISCRGVAL9_0', Numeric(19, 5), default=text('((0))')
+    )
+    discountOrCharge1Reason: Mapped[int] = mapped_column('DISCRGREN1_0', SmallInteger, default=text('((0))'))
+    discountOrCharge2Reason: Mapped[int] = mapped_column('DISCRGREN2_0', SmallInteger, default=text('((0))'))
+    discountOrCharge3Reason: Mapped[int] = mapped_column('DISCRGREN3_0', SmallInteger, default=text('((0))'))
+    discountOrCharge4Reason: Mapped[int] = mapped_column('DISCRGREN4_0', SmallInteger, default=text('((0))'))
+    discountOrCharge5Reason: Mapped[int] = mapped_column('DISCRGREN5_0', SmallInteger, default=text('((0))'))
+    discountOrCharge6Reason: Mapped[int] = mapped_column('DISCRGREN6_0', SmallInteger, default=text('((0))'))
+    discountOrCharge7Reason: Mapped[int] = mapped_column('DISCRGREN7_0', SmallInteger, default=text('((0))'))
+    discountOrCharge8Reason: Mapped[int] = mapped_column('DISCRGREN8_0', SmallInteger, default=text('((0))'))
+    discountOrCharge9Reason: Mapped[int] = mapped_column('DISCRGREN9_0', SmallInteger, default=text('((0))'))
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='VAT',
+        property_name='tax',
+        count=3,
+        column_type=Unicode,
+        column_args=(5, DB_COLLATION),
+        python_type=str,
+        server_default=text("''"),
+    )
+
+    taxes = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    lineAmount: Mapped[decimal.Decimal] = mapped_column('AMTLIN_0', Numeric(27, 13), default=text('((0))'))
+    lineAmountExcludingTax: Mapped[decimal.Decimal] = mapped_column(
+        'AMTNOTLIN_0', Numeric(27, 13), default=text('((0))')
+    )
+    discountLineAmount: Mapped[decimal.Decimal] = mapped_column('AMTDEPLIN_0', Numeric(27, 13), default=text('((0))'))
+    calculatedTaxableBase1: Mapped[decimal.Decimal] = mapped_column('CLCAMT1_0', Numeric(27, 13), default=text('((0))'))
+    calculatedTaxableBase2: Mapped[decimal.Decimal] = mapped_column('CLCAMT2_0', Numeric(27, 13), default=text('((0))'))
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='BASTAXLIN',
+        property_name='tax_basis',
+        count=6,
+        column_type=Numeric,
+        column_args=(27, 13),
+        python_type=decimal.Decimal,
+        server_default=text('((0))'),
+    )
+
+    taxesBasisAmount = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    taxRates: Mapped[decimal.Decimal] = mapped_column('RATTAXLIN_0', Numeric(8, 3), default=text('((0))'))
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='AMTTAXLIN',
+        property_name='tax_amount',
+        count=3,
+        column_type=Numeric,
+        column_args=(27, 13),
+        python_type=decimal.Decimal,
+        server_default=text('((0))'),
+    )
+
+    taxesAmount = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    lineAmountIncludingTax: Mapped[decimal.Decimal] = mapped_column(
+        'AMTATILIN_0', Numeric(27, 13), default=text('((0))')
+    )
+    isLineWithDistributedInvoicingElement: Mapped[int] = mapped_column('DSPLINFLG_0', TINYINT, default=text('((0))'))
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='DDTANUM',
+        property_name='distr_invoice_number',
+        count=9,
+        column_type=SmallInteger,
+        python_type=int,
+        server_default=text('((0))'),
+    )
+
+    distributedLineInvoicingElementNumbers = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='DDTANOT',
+        property_name='distr_invoice_amount',
+        count=9,
+        column_type=Numeric,
+        column_args=(27, 13),
+        python_type=decimal.Decimal,
+        server_default=text('((0))'),
+    )
+
+    distributedLineInvoicingElementAmounts = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='DDTADEP',
+        property_name='distr_invoice_discount',
+        count=9,
+        column_type=Numeric,
+        column_args=(27, 13),
+        python_type=decimal.Decimal,
+        server_default=text('((0))'),
+    )
+
+    distributedLineInvoicingElementDiscounts = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    quantityInSalesUnit: Mapped[decimal.Decimal] = mapped_column('QTY_0', Numeric(28, 13), default=text('((0))'))
+    quantityInStockUnit: Mapped[decimal.Decimal] = mapped_column('QTYSTU_0', Numeric(28, 13), default=text('((0))'))
+    salesUnit: Mapped[str] = mapped_column('SAU_0', Unicode(3, collation=DB_COLLATION), default=text("''"))
+    stockUnit: Mapped[str] = mapped_column('STU_0', Unicode(3, collation=DB_COLLATION), default=text("''"))
+    salesUnitToStockUnitConversionFactor: Mapped[decimal.Decimal] = mapped_column(
+        'SAUSTUCOE_0', Numeric(18, 7), default=text('((0))')
+    )
+    shippingSite: Mapped[str] = mapped_column('STOFCY_0', Unicode(5, collation=DB_COLLATION), default=text("''"))
+    productStockManagement: Mapped[int] = mapped_column('STOMGTCOD_0', TINYINT, default=text('((0))'))
+    exclusiveLotFilter: Mapped[str] = mapped_column('LOT_0', Unicode(15, collation=DB_COLLATION), default=text("''"))
+    exclusiveStockStatusFilter: Mapped[str] = mapped_column(
+        'STA_0', Unicode(12, collation=DB_COLLATION), default=text("''")
+    )
+    preferentialStockLocationFilter: Mapped[str] = mapped_column(
+        'LOC_0', Unicode(10, collation=DB_COLLATION), default=text("''")
+    )
+    stockPriceInCreditMemoWithStockMovement: Mapped[decimal.Decimal] = mapped_column(
+        'PRIORD_0', Numeric(27, 13), default=text('((0))')
+    )
+    allocationType: Mapped[int] = mapped_column('ALLTYP_0', TINYINT, default=text('((0))'))
+    salesSite: Mapped[str] = mapped_column('SALFCY_0', Unicode(5, collation=DB_COLLATION), default=text("''"))
+    invoiceDate: Mapped[datetime.datetime] = mapped_column('INVDAT_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='TSICOD',
+        property_name='statistical_group',
+        count=5,
+        column_type=Unicode,
+        column_args=(20, DB_COLLATION),
+        python_type=str,
+        server_default=text("''"),
+    )
+
+    statisticalGroups = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    lineType: Mapped[int] = mapped_column('LINTYP_0', TINYINT, default=text('((0))'))
+    freeProduct: Mapped[int] = mapped_column('FOCFLG_0', TINYINT, default=text('((0))'))
+    freeProductLineSource: Mapped[int] = mapped_column('ORILIN_0', Integer, default=text('((0))'))
+    lineText: Mapped[str] = mapped_column('SIDTEX_0', Unicode(17, collation=DB_COLLATION), default=text("''"))
+    isExtractedIntrastatLine: Mapped[int] = mapped_column('LINEECFLG_0', TINYINT, default=text('((0))'))
+    isIntrastatPhysicalFlow: Mapped[int] = mapped_column('EECFLOPHY_0', TINYINT, default=text('((0))'))
+    geographicCode: Mapped[str] = mapped_column('GEOCOD_0', Unicode(1, collation=DB_COLLATION), default=text("''"))
+    insideCityLimits: Mapped[str] = mapped_column('INSCTYFLG_0', Unicode(1, collation=DB_COLLATION), default=text("''"))
+    vertexTransactionSubtype: Mapped[str] = mapped_column(
+        'VTS_0', Unicode(1, collation=DB_COLLATION), default=text("''")
+    )
+    vertexTransactionCode: Mapped[str] = mapped_column('VTC_0', Unicode(1, collation=DB_COLLATION), default=text("''"))
+    isTaxedGeographically: Mapped[str] = mapped_column(
+        'TAXGEOFLG_0', Unicode(1, collation=DB_COLLATION), default=text("''")
+    )
+    isTaxable: Mapped[int] = mapped_column('TAXFLG_0', SmallInteger, default=text('((0))'))
+    isRecordedTax: Mapped[int] = mapped_column('TAXREGFLG_0', SmallInteger, default=text('((0))'))
+    isPrintedOnInvoice: Mapped[int] = mapped_column('INVPRNBOM_0', TINYINT, default=text('((0))'))
+    serviceStartDate: Mapped[datetime.datetime] = mapped_column('STRDAT_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
+    serviceEndDate: Mapped[datetime.datetime] = mapped_column('ENDDAT_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
+    servicePeriodNumber: Mapped[int] = mapped_column('PERNBR_0', SmallInteger, default=text('((0))'))
+    servicePeriodType: Mapped[int] = mapped_column('PERTYP_0', TINYINT, default=text('((0))'))
+    tokenManagement: Mapped[decimal.Decimal] = mapped_column('PITFLG_0', Numeric(28, 13), default=text('((0))'))
+    weightDistributedOnLine: Mapped[decimal.Decimal] = mapped_column(
+        'DSPLINWEI_0', Numeric(28, 13), default=text('((0))')
+    )
+    volumeDistributedOnLine: Mapped[decimal.Decimal] = mapped_column(
+        'DSPLINVOL_0', Numeric(28, 13), default=text('((0))')
+    )
+    weightUnitForDistributionOnLines: Mapped[str] = mapped_column(
+        'DSPWEU_0', Unicode(3, collation=DB_COLLATION), default=text("''")
+    )
+    volumeUnitForDistributionOnLines: Mapped[str] = mapped_column(
+        'DSPVOU_0', Unicode(3, collation=DB_COLLATION), default=text("''")
+    )
+    warehouse: Mapped[str] = mapped_column('WRH_0', Unicode(1, collation=DB_COLLATION), default=text("''"))
+    project: Mapped[str] = mapped_column('PJT_0', Unicode(40, collation=DB_COLLATION), default=text("''"))
+    exportNumber: Mapped[int] = mapped_column('EXPNUM_0', Integer, default=text('((0))'))
+    importLineNumber: Mapped[int] = mapped_column('IMPNUMLIG_0', Integer, default=text('((0))'))
+    sourceDocumentType: Mapped[int] = mapped_column('SIDORI_0', TINYINT, default=text('((0))'))
+    invoicePercentageForScheduledInvoice: Mapped[decimal.Decimal] = mapped_column(
+        'INVPRC_0', Numeric(12, 5), default=text('((0))')
+    )
+    scheduledInvoiceLineNumber: Mapped[int] = mapped_column('VCRINVCNDLIN_0', Integer, default=text('((0))'))
+    scheduledInvoiceSource: Mapped[int] = mapped_column('VCRINVCNDTYP_0', TINYINT, default=text('((0))'))
+    projectSalesDocument: Mapped[str] = mapped_column(
+        'SIDPSONUM_0', Unicode(1, collation=DB_COLLATION), default=text("''")
+    )
+    projectSalesDocumentLineNumber: Mapped[int] = mapped_column('SIDSEQNUM_0', SmallInteger, default=text('((0))'))
+    reinvoicing: Mapped[int] = mapped_column('INVCNDUPD_0', TINYINT, default=text('((0))'))
+    reinvoicingDate: Mapped[datetime.datetime] = mapped_column('NEXINVDAT_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
+    scheduledInvoices: Mapped[str] = mapped_column('SVICNUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))

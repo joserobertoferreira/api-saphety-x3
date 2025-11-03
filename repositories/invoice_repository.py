@@ -1,12 +1,18 @@
+"""Módulo do repositório para interações com dados de faturas.
+
+Este módulo contém a classe SalesInvoiceRepository, que abstrai todas as
+operações de base de dados relacionadas com as faturas de venda (SINVOICEV),
+cabeçalhos (SINVOICE) e entidades relacionadas.
+"""
+
 import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload, load_only
 from sqlalchemy.sql import and_, select
 
-from database.database import db
 from models.customer import Customer
-from models.sales_invoice import SalesInvoice
+from models.sales_invoice import CustomerInvoiceHeader, SalesInvoice, SalesInvoiceDetail
 from utils.local_menus import NoYes
 
 logger = logging.getLogger(__name__)
@@ -18,12 +24,23 @@ class SalesInvoiceRepository:
     This class provides methods to interact with the sales invoice data.
     """
 
-    def fetch_pending_invoices(self, session: Session, invoice_number: Optional[str] = None) -> list[SalesInvoice]:  # noqa: PLR6301
+    def fetch_pending_invoices(  # noqa: PLR6301
+        self,
+        session: Session,
+        invoice_number: Optional[str] = None,
+        invoice_cols: Optional[list[str]] = None,
+        invoice_header_cols: Optional[list[str]] = None,
+        customer_cols: Optional[list[str]] = None,
+    ) -> list[SalesInvoice]:  # noqa: PLR6301
         """
-        Search an invoices marked as CIUS-PT invoice and not yet processed.
+        Search invoices marked as CIUS-PT invoice and not yet processed.
         Args:
             session (Session): The database session to use for the query.
             invoice_number (Optional[str]): The invoice number to filter by. If None, fetch all pending invoices.
+            invoice_cols (Optional[list[str]]): List of invoice column names to load. If None, load default columns.
+            invoice_header_cols (Optional[list[str]]): List of invoice header column names to load. If None,
+            load default columns.
+            customer_cols (Optional[list[str]]): List of customer column names to load. If None, load default columns.
         Returns:
             list[SalesInvoice]: A list of SalesInvoice instances with customers data.
         """
@@ -31,24 +48,28 @@ class SalesInvoiceRepository:
 
         try:
             stmt = select(SalesInvoice)
-            stmt = stmt.options(joinedload(SalesInvoice.customer), joinedload(SalesInvoice.control))
 
-            invoice_columns = [
-                SalesInvoice.invoiceNumber,
-                SalesInvoice.invoiceDate,
-                SalesInvoice.billToCustomer,
-            ]
+            query = []
 
-            customer_columns = [
-                Customer.customerCode,
-                Customer.customerName,
-                Customer.ciusType,
-            ]
+            if invoice_cols:
+                query.append(load_only(*[getattr(SalesInvoice, col) for col in invoice_cols]))
 
-            stmt = select(SalesInvoice).options(
-                load_only(*invoice_columns),
-                joinedload(SalesInvoice.customer).load_only(*customer_columns),
-            )
+            header_loader = joinedload(SalesInvoice.invoice_header)
+
+            if invoice_header_cols:
+                header_loader = header_loader.load_only(*[
+                    getattr(CustomerInvoiceHeader, col) for col in invoice_header_cols
+                ])
+
+            customer_loader = joinedload(SalesInvoice.customer)
+
+            if customer_cols:
+                customer_loader = customer_loader.load_only(*[getattr(Customer, col) for col in customer_cols])
+
+            query.append(customer_loader)
+            query.append(header_loader)
+
+            stmt = stmt.options(*query)
 
             conditions = [
                 SalesInvoice.isCiusPT == NoYes.YES.value,
@@ -74,12 +95,13 @@ class SalesInvoiceRepository:
             # possa lidar com ela (ex: fazendo um rollback da transação).
             raise
 
+    def fetch_details_for_invoice(self, session: Session, invoice_number: str) -> list[SalesInvoiceDetail]:  # noqa: PLR6301
+        """Busca todas as linhas de detalhe para um número de fatura específico."""
+        logger.info(f'Buscar linhas de detalhe para a fatura {invoice_number}...')
 
-class ApiInvoiceDetailRepository:
-    """
-    Repository for managing API invoice detail data.
-    This class provides methods to interact with the API invoice detail data.
-    """
+        stmt = select(SalesInvoiceDetail).where(SalesInvoiceDetail.invoiceNumber == invoice_number)
 
-    def __init__(self):
-        self.db = db
+        records = session.execute(stmt).scalars().all()
+
+        logger.info(f'Encontradas {len(records)} linhas para a fatura {invoice_number}.')
+        return list(records)

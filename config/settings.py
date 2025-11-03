@@ -83,3 +83,14 @@ SCHEDULING = {
     # Execution interval in minutes
     'INTERVAL_MINUTES': config('SCHEDULE_INTERVAL_MINUTES', default=60, cast=int),
 }
+
+# --- Definição dos Namespaces (crucial para CIUS-PT) ---
+# Estes são os namespaces padrão para UBL 2.1
+NS_CBC = 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2'
+NS_CAC = 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2'
+NS_ROOT = 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'
+NSMAP = {
+    None: NS_ROOT,
+    'cac': NS_CAC,
+    'cbc': NS_CBC,
+}
