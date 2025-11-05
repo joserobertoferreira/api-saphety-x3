@@ -1,11 +1,13 @@
 import logging
 import platform
+from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Type
 
 import pandas as pd
 import sqlalchemy as sa
 import yaml
+
 from config import settings
 
 # Configurar logging
@@ -145,3 +147,16 @@ class Generics:
             return False
 
         return True
+
+    @staticmethod
+    def get_enum_name(enum_class: Type[Enum], value: int) -> Optional[str]:
+        """
+        Retorna o nome (name) de um membro do Enum a partir de um valor numérico.
+        Funciona para qualquer Enum ou IntEnum.
+        Retorna None se o valor não existir.
+        """
+        if not issubclass(enum_class, Enum):
+            raise TypeError(f'{enum_class} não é uma subclasse de Enum')
+
+        member = enum_class._value2member_map_.get(value)
+        return member.name if member else None

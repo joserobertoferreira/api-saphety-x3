@@ -248,7 +248,7 @@ class CustomerInvoiceHeader(
         server_default=text('((0))'),
     )
 
-    taxAmount = _properties
+    taxAmounts = _properties
 
     for _attr_name, _mapped_column in _columns.items():
         locals()[_attr_name] = _mapped_column
@@ -321,24 +321,7 @@ class CustomerInvoiceHeader(
     lastServiceAccountedDate: Mapped[datetime.datetime] = mapped_column(
         'LASDATSVC_0', DateTime, default=DEFAULT_LEGACY_DATETIME
     )
-
-    _properties, _columns = ArrayColumnMixin.create_array_property(
-        db_column_prefix='AMTTAXUSA',
-        property_name='tax_usa',
-        count=10,
-        column_type=Numeric,
-        column_args=(27, 13),
-        python_type=decimal.Decimal,
-        server_default=text("''"),
-    )
-
-    usaSalesTaxAmount = _properties
-
-    for _attr_name, _mapped_column in _columns.items():
-        locals()[_attr_name] = _mapped_column
-
-    del _attr_name, _mapped_column, _properties, _columns
-
+    usaSalesTaxAmount: Mapped[decimal.Decimal] = mapped_column('AMTTAXUSA_0', Numeric(28, 8), default=text('((0))'))
     caiNumber: Mapped[str] = mapped_column('CAI_0', Unicode(10, collation=DB_COLLATION), default=text("''"))
     caiValidityDate: Mapped[datetime.datetime] = mapped_column('DATVLYCAI_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
     warehouse: Mapped[str] = mapped_column('WRHE_0', Unicode(5, collation=DB_COLLATION), default=text("''"))
@@ -396,7 +379,34 @@ class CustomerInvoiceHeader(
     autoInvoicingSpanish: Mapped[int] = mapped_column('ISSBYREC_0', TINYINT, default=text('((0))'))
     manualAutoInvoicingSpaGenerated: Mapped[int] = mapped_column('ISSBYRECG_0', TINYINT, default=text('((0))'))
     automaticAutoInvoicingSpaGenerated: Mapped[int] = mapped_column('ISSAUTGEN_0', TINYINT, default=text('((0))'))
-    isCiusPT: Mapped[int] = mapped_column('YCIUSFLG_0', TINYINT, default=text('((1))'))
+
+    # Específicos MOP
+    recapitulative: Mapped[str] = mapped_column('XRECBPR_0', Unicode(15, collation=DB_COLLATION), default=text("''"))
+    dua: Mapped[str] = mapped_column('XDUA_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    orderNumber: Mapped[str] = mapped_column('ZNUMENC_0', Unicode(30, collation=DB_COLLATION), default=text("''"))
+    deliveryEndDate: Mapped[datetime.datetime] = mapped_column('XPDLVDAT_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
+    quotationNumber: Mapped[str] = mapped_column('ZNUMPRO_0', Unicode(30, collation=DB_COLLATION), default=text("''"))
+    paymentBank1: Mapped[str] = mapped_column('BAN_0', Unicode(5, collation=DB_COLLATION), default=text("''"))
+    deliveryStartTime: Mapped[str] = mapped_column('XPETD_0', Unicode(6, collation=DB_COLLATION), default=text("''"))
+    deliveryEndTime: Mapped[str] = mapped_column('XPETA_0', Unicode(6, collation=DB_COLLATION), default=text("''"))
+    edition: Mapped[str] = mapped_column('ZEDICAO_0', Unicode(10, collation=DB_COLLATION), default=text("''"))
+    editionPage: Mapped[str] = mapped_column('ZPAGINA_0', Unicode(10, collation=DB_COLLATION), default=text("''"))
+    editionDate: Mapped[datetime.datetime] = mapped_column('ZDEDICAO_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
+    shippingStartDate: Mapped[datetime.datetime] = mapped_column(
+        'XPSHIDAT_0', DateTime, default=DEFAULT_LEGACY_DATETIME
+    )
+    licensePlate: Mapped[str] = mapped_column('XPLICPLATE_0', Unicode(30, collation=DB_COLLATION), default=text("''"))
+    globalDocument: Mapped[str] = mapped_column('XPORDREF_0', Unicode(250, collation=DB_COLLATION), default=text("''"))
+    globalDocumentDate: Mapped[datetime.datetime] = mapped_column(
+        'XPORDDAT_0', DateTime, default=DEFAULT_LEGACY_DATETIME
+    )
+    agency: Mapped[str] = mapped_column('ZAGENCIA_0', Unicode(30, collation=DB_COLLATION), default=text("''"))
+    finalCustomer: Mapped[str] = mapped_column('ZCLIENTEF_0', Unicode(30, collation=DB_COLLATION), default=text("''"))
+    reasonField40: Mapped[str] = mapped_column('XP_MOTF40_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    reasonField41: Mapped[str] = mapped_column('XP_MOTF41_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    accessCode: Mapped[str] = mapped_column('ZCODACES_0', Unicode(10, collation=DB_COLLATION), default=text("''"))
+    startPeriod: Mapped[datetime.datetime] = mapped_column('XPPERDEB_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
+    endPeriod: Mapped[datetime.datetime] = mapped_column('XPPERFIN_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
 
     details: Mapped[list['SalesInvoiceDetail']] = relationship(
         'SalesInvoiceDetail',
@@ -787,6 +797,13 @@ class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
         'SIHNUMEND_0', Unicode(20, collation=DB_COLLATION), default=text("''")
     )
     hasElectronicSignature: Mapped[int] = mapped_column('SIHCFMFLG_0', TINYINT, default=text('((0))'))
+
+    # Específicos MOP
+    campaignStartDate: Mapped[datetime.datetime] = mapped_column(
+        'ZDATACAMP_0', DateTime, default=DEFAULT_LEGACY_DATETIME
+    )
+
+    # Específicos CiusPT
     isCiusPT: Mapped[int] = mapped_column('YCIUSFLG_0', TINYINT, default=text('((1))'))
 
     customer: Mapped['Customer'] = relationship(
@@ -1151,3 +1168,38 @@ class SalesInvoiceDetail(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixi
     reinvoicing: Mapped[int] = mapped_column('INVCNDUPD_0', TINYINT, default=text('((0))'))
     reinvoicingDate: Mapped[datetime.datetime] = mapped_column('NEXINVDAT_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
     scheduledInvoices: Mapped[str] = mapped_column('SVICNUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+
+
+class SalesInvoiceTax(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
+    __tablename__ = 'SVCRVAT'
+    __table_args__ = (
+        PrimaryKeyConstraint('ROWID', name='SVCRVAT_ROWID'),
+        Index('SVCRVAT_SVV0', 'VCRTYP_0', 'VCRNUM_0', 'VAT_0', unique=True),
+        Index('SVCRVAT_SVV1', 'VCRTYP_0', 'VCRNUM_0', 'VATTYP_0', 'VAT_0', unique=True),
+        Index('SVCRVAT_SVV2', 'NUM_0', 'VCRTYP_0', 'VCRNUM_0', 'VAT_0', unique=True),
+        {'schema': f'{DATABASE["SCHEMA"]}'},
+    )
+
+    entryType: Mapped[int] = mapped_column('VCRTYP_0', TINYINT, default=text('((0))'))
+    entryNumber: Mapped[str] = mapped_column('VCRNUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    tax: Mapped[str] = mapped_column('VAT_0', Unicode(5, collation=DB_COLLATION), default=text("''"))
+    taxType: Mapped[int] = mapped_column('VATTYP_0', TINYINT, default=text('((0))'))
+    invoiceNumber: Mapped[str] = mapped_column('NUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+    rate: Mapped[decimal.Decimal] = mapped_column('VATRAT_0', Numeric(16, 7), default=text('((0))'))
+    company: Mapped[str] = mapped_column('CPY_0', Unicode(5, collation=DB_COLLATION), default=text("''"))
+    currency: Mapped[str] = mapped_column('CUR_0', Unicode(3, collation=DB_COLLATION), default=text("''"))
+    taxBasis: Mapped[decimal.Decimal] = mapped_column('BASTAX_0', Numeric(27, 13), default=text('((0))'))
+    taxAmount: Mapped[decimal.Decimal] = mapped_column('AMTTAX_0', Numeric(27, 13), default=text('((0))'))
+    theoreticalTaxAmount: Mapped[decimal.Decimal] = mapped_column('THEAMTTAX_0', Numeric(28, 8), default=text('((0))'))
+    exemptionAmount: Mapped[decimal.Decimal] = mapped_column('EXEAMTTAX_0', Numeric(27, 13), default=text('((0))'))
+    grossBasis: Mapped[decimal.Decimal] = mapped_column('VATGRO_0', Numeric(27, 13), default=text('((0))'))
+    subjectBasis: Mapped[decimal.Decimal] = mapped_column('VATNET_0', Numeric(27, 13), default=text('((0))'))
+    taxAmount1: Mapped[decimal.Decimal] = mapped_column('VATAMT_0', Numeric(27, 13), default=text('((0))'))
+    additionalTaxAmount: Mapped[decimal.Decimal] = mapped_column('VATSUPAMT_0', Numeric(27, 13), default=text('((0))'))
+    discountBasisExcludingTax: Mapped[decimal.Decimal] = mapped_column(
+        'BASDEPNOT_0', Numeric(27, 13), default=text('((0))')
+    )
+    discountBasisIncludingTax: Mapped[decimal.Decimal] = mapped_column(
+        'BASDEPATI_0', Numeric(27, 13), default=text('((0))')
+    )
+    withHoldingTax: Mapped[int] = mapped_column('WITHOLTAXFLG_0', TINYINT, default=text('((0))'))

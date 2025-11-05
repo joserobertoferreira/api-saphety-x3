@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, joinedload, load_only
 from sqlalchemy.sql import and_, select
 
 from models.customer import Customer
-from models.sales_invoice import CustomerInvoiceHeader, SalesInvoice, SalesInvoiceDetail
+from models.sales_invoice import CustomerInvoiceHeader, SalesInvoice, SalesInvoiceDetail, SalesInvoiceTax
 from utils.local_menus import NoYes
 
 logger = logging.getLogger(__name__)
@@ -104,4 +104,15 @@ class SalesInvoiceRepository:
         records = session.execute(stmt).scalars().all()
 
         logger.info(f'Encontradas {len(records)} linhas para a fatura {invoice_number}.')
+        return list(records)
+
+    def fetch_taxes_for_invoice(self, session: Session, invoice_number: str) -> list[SalesInvoiceTax]:  # noqa: PLR6301
+        """Busca todas as linhas de impostos para um número de fatura específico."""
+        logger.info(f'Buscar linhas de impostos para a fatura {invoice_number}...')
+
+        stmt = select(SalesInvoiceTax).where(SalesInvoiceTax.invoiceNumber == invoice_number)
+
+        records = session.execute(stmt).scalars().all()
+
+        logger.info(f'Encontradas {len(records)} linhas de impostos para a fatura {invoice_number}.')
         return list(records)

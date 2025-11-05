@@ -2,18 +2,18 @@ import datetime
 import decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Integer, Numeric, PrimaryKeyConstraint, SmallInteger, Unicode, text
+from sqlalchemy import DateTime, Index, Integer, Numeric, PrimaryKeyConstraint, SmallInteger, Unicode, text
 from sqlalchemy.dialects.mssql import TINYINT
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from config.settings import DATABASE, DB_COLLATION, DEFAULT_LEGACY_DATETIME
+from config.settings import DATABASE, DB_COLLATION, DEFAULT_LEGACY_DATE, DEFAULT_LEGACY_DATETIME
 from database.base import Base
 
 from .generics_mixins import ArrayColumnMixin
 from .mixins import AuditMixin, CreateUpdateDateMixin, DimensionMixin, DimensionTypesMixin, PrimaryKeyMixin
 
 if TYPE_CHECKING:
-    from .partner import BusinessPartner
+    from .business_partner import BusinessPartner
 
 
 class Customer(
@@ -27,6 +27,9 @@ class Customer(
     __tablename__ = 'BPCUSTOMER'
     __table_args__ = (
         PrimaryKeyConstraint('ROWID', name='BPCUSTOMER_ROWID'),
+        Index('BPCUSTOMER_BPC0', 'BPCNUM_0', unique=True),
+        Index('BPCUSTOMER_BPC1', 'BPCNAM_0'),
+        Index('BPCUSTOMER_ZBPC3', 'ZCODACES_0'),  # Específico MOP
         {'schema': f'{DATABASE["SCHEMA"]}'},
     )
 
@@ -214,6 +217,62 @@ class Customer(
         'STRDATEFAT_0', DateTime, default=text(f"'{DEFAULT_LEGACY_DATETIME}'")
     )
     isElectronicInvoiceAllowed: Mapped[int] = mapped_column('AEIFLG_0', TINYINT, default=text('((0))'))
+
+    # Específicos MOP
+    numberOfCopiesReceived: Mapped[int] = mapped_column('COPREC_0', SmallInteger, default=text('((0))'))
+    accessCode: Mapped[str] = mapped_column('ZCODACES_0', Unicode(10, collation=DB_COLLATION), default=text("''"))
+
+    typeCustomer: Mapped[int] = mapped_column('XP_BPCTYP_0', TINYINT, default=text('((1))'))
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='XPIVACFLG',
+        property_name='vat_regime',
+        count=9,
+        column_type=TINYINT,
+        python_type=int,
+        default=text('((1))'),
+    )
+
+    VatRegimes = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='XPSTRDAT',
+        property_name='start_date',
+        count=9,
+        column_type=DateTime,
+        python_type=datetime.datetime,
+        default=text(f"'{DEFAULT_LEGACY_DATE}'"),
+    )
+
+    start_dates = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    _properties, _columns = ArrayColumnMixin.create_array_property(
+        db_column_prefix='XPENDDAT',
+        property_name='end_date',
+        count=9,
+        column_type=DateTime,
+        python_type=datetime.datetime,
+        default=text(f"'{DEFAULT_LEGACY_DATE}'"),
+    )
+
+    end_dates = _properties
+
+    for _attr_name, _mapped_column in _columns.items():
+        locals()[_attr_name] = _mapped_column
+
+    del _attr_name, _mapped_column, _properties, _columns
+
+    # Específicos CIUS
     ciusType: Mapped[int] = mapped_column('YCIUSTYP_0', TINYINT, default=text('((0))'))
 
     business_partner: Mapped['BusinessPartner'] = relationship(
