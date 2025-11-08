@@ -1,26 +1,24 @@
 import argparse
 import logging
 
-# 1. Importações da sua estrutura de projeto
-from config.logging import setup_logging
-
-# Importa a MESMA função de lógica de negócio que o serviço usa
-# TODO: No futuro, virá de 'services.processor'
-from services.invoice_processor import InvoiceProcessorService
+from core.config.logging import setup_logging
+from core.services.invoice_processor import InvoiceProcessorService
+from core.services.saphety_service import SaphetyApiClient
+from core.utils.generics import Generics
 
 
-# --- Função Principal da CLI ---
 def main():
     """
     Ponto de entrada principal para a execução via linha de comando (CLI).
     Configura logging, interpreta argumentos e executa a lógica de negócio.
     """
-    # 2. Configura o sistema de logging, tal como no serviço
+
+    # Configura o sistema de logging, tal como no serviço
     setup_logging()
 
     main_logger = logging.getLogger(__name__)
 
-    # 3. Configura o parser de argumentos da linha de comando
+    # Configura o parser de argumentos da linha de comando
     parser = argparse.ArgumentParser(description='Ferramenta de execução sob demanda para o envio de faturas CIUS-PT.')
 
     # Adicionamos um argumento opcional '--invoice'.
@@ -34,22 +32,21 @@ def main():
 
     args = parser.parse_args()
 
-    # 4. Executa a lógica de negócio
+    if args.invoice:
+        main_logger.info(f'Execução por demanda iniciada para a fatura: {args.invoice}')
+    else:
+        main_logger.info('Execução por demanda iniciada para as faturas pendentes.')
+
+    # Executa a lógica de negócio
     try:
-        processor = InvoiceProcessorService()
+        # Chama o mapper específico para o cliente se for o caso
+        customer_mapper = Generics.get_customer_mapper()
 
+        # Injeta o mapper para criar o serviço com o comportamento correto
+        processor = InvoiceProcessorService(customer_mapper=customer_mapper)
+
+        main_logger.info('Processar faturas pendentes')
         processor.process_pending_invoices(invoice_id=args.invoice)
-
-        # if args.invoice:
-        #     main_logger.info(f'Execução por demanda iniciada para a fatura específica: {args.invoice}')
-        #     # TODO: Modificar a função `process_pending_invoices` para aceitar um argumento
-        #     # process_pending_invoices(invoice_id=args.invoice)
-        #     process_pending_invoices()  # Por enquanto, chamamos a versão simples
-        # else:
-        #     main_logger.info('Execução por demanda iniciada para todas as faturas pendentes.')
-        #     process_pending_invoices()
-
-        main_logger.info('Execução concluída com sucesso.')
 
     except Exception:
         main_logger.exception('Ocorreu um erro crítico durante a execução por demanda.')
@@ -57,7 +54,18 @@ def main():
         # import sys
         # sys.exit(1)
 
+    try:
+        # Cria o serviço de envio de faturas
+        saphety_client = SaphetyApiClient()
 
-# --- Ponto de Execução ---
+        main_logger.info('Enviar faturas para Saphety')
+        saphety_client.send_pending_invoices(invoice_id=args.invoice)
+
+    except Exception:
+        main_logger.exception('Ocorreu um erro na fase de envio.')
+
+    main_logger.info('Execução concluída com sucesso.')
+
+
 if __name__ == '__main__':
     main()
