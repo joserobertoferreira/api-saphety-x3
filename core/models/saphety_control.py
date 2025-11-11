@@ -24,6 +24,8 @@ class SaphetyApiControl(Base, AuditMixin, PrimaryKeyMixin):
     message: Mapped[str] = mapped_column('MSGAPI_0', Unicode(255, collation=DB_COLLATION), default=text("''"))
     status: Mapped[int] = mapped_column('STAAPI_0', TINYINT, default=text('((1))'))
     requestStatus: Mapped[int] = mapped_column('STAREQ_0', TINYINT, default=text('((1))'))
+    integrationStatus: Mapped[int] = mapped_column('STAINT_0', TINYINT, default=text('((1))'))
+    notificationStatus: Mapped[int] = mapped_column('STANOT_0', TINYINT, default=text('((1))'))
     requestId: Mapped[str] = mapped_column('REQUESTID_0', Unicode(50, collation=DB_COLLATION), default=text("''"))
     financialId: Mapped[str] = mapped_column('OUTFINID_0', Unicode(50, collation=DB_COLLATION), default=text("''"))
 
@@ -42,6 +44,8 @@ class APIControlView(Base):
     message: Mapped[str] = mapped_column('MSGAPI_0', Unicode(255, collation=DB_COLLATION))
     status: Mapped[int] = mapped_column('STAAPI_0', TINYINT)
     requestStatus: Mapped[int] = mapped_column('STAREQ_0', TINYINT)
+    integrationStatus: Mapped[int] = mapped_column('STAINT_0', TINYINT)
+    notificationStatus: Mapped[int] = mapped_column('STANOT_0', TINYINT)
     requestId: Mapped[str] = mapped_column('REQUESTID_0', Unicode(50, collation=DB_COLLATION))
     financialId: Mapped[str] = mapped_column('OUTFINID_0', Unicode(50, collation=DB_COLLATION))
     createDatetime: Mapped[datetime.datetime] = mapped_column('CREDATTIM_0', DateTime, nullable=False)

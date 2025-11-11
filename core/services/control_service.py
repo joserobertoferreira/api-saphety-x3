@@ -8,7 +8,7 @@ from core.models.saphety_control import APIControlView, SaphetyApiControl
 from core.repositories.control_api_repository import ControlApiRepository
 from core.repositories.control_repository import ControlRepository
 from core.types.types import ControlArgs
-from core.utils.local_menus import SaphetyStatus
+from core.utils.local_menus import SaphetyIntegrationStatus, SaphetyRequestStatus, SaphetyStatus
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class ControlService:
 
         context['status'] = SaphetyStatus.SENT_SUCCESSFULLY
         context['message'] = 'Enviado com sucesso'
-        context['sended_at'] = datetime.now(timezone.utc).date()
+        context['sendDate'] = datetime.now(timezone.utc).date()
 
         self._update_record(session=session, data=context)
 
@@ -72,17 +72,50 @@ class ControlService:
         """Regista um erro retornado pela API durante o envio."""
 
         context['status'] = SaphetyStatus.SENT_ERROR
-        context['sended_at'] = datetime.now(timezone.utc).date()
+        context['sendDate'] = datetime.now(timezone.utc).date()
 
+        self._update_record(session=session, data=context)
+
+    def update_integration_status(self, session: Session, context: ControlArgs):
+        """Atualiza o estado de integração de uma fatura."""
         self._update_record(session=session, data=context)
 
     def get_pending_invoices(self, session: Session, invoice_number: str | None = None) -> list[APIControlView]:
         """Recupera a lista de faturas pendentes de envio."""
-        filters: dict[str, Any] = {'status': SaphetyStatus.WAITING}
+        filters: dict[str, tuple[str, Any]] = {'status': ('=', SaphetyStatus.WAITING)}
 
         if invoice_number:
-            filters['invoiceNumber'] = invoice_number
+            filters['invoiceNumber'] = ('=', invoice_number)
 
-        results = self.api_repo.find(session=session, filters=filters)
+        results = self.api_repo.find(session=session, where_clauses=filters)
+
+        return results
+
+    def fetch_invoices_by_status(
+        self, session: Session, status: SaphetyRequestStatus, invoice_number: str | None = None
+    ) -> list[APIControlView]:
+        """Recupera a lista de faturas por status."""
+
+        filters: dict[str, tuple[str, Any]] = {'requestStatus': ('=', status)}
+
+        if invoice_number is not None:
+            filters['invoiceNumber'] = ('=', invoice_number)
+
+        results = self.api_repo.find(session=session, where_clauses=filters)
+
+        return results
+
+    def fetch_invoices_to_be_checked(self, session: Session, invoice_number: str | None = None) -> list[APIControlView]:
+        """Recupera a lista de faturas que precisam ter o status verificado."""
+
+        filters: dict[str, tuple[str, Any]] = {
+            'requestStatus': ('=', SaphetyRequestStatus.FINISHED),
+            'integrationStatus': ('!=', SaphetyIntegrationStatus.RECEIVED),
+        }
+
+        if invoice_number is not None:
+            filters['invoiceNumber'] = ('=', invoice_number)
+
+        results = self.api_repo.find(session=session, where_clauses=filters)
 
         return results

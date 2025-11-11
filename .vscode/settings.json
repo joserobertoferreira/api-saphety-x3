@@ -424,6 +424,8 @@
     "SSTTAXACT",
     "STAAPI",
     "STAFED",
+    "STAINT",
+    "STANOT",
     "STAREQ",
     "STARPT",
     "STOMGTCOD",

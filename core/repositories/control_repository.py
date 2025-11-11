@@ -59,8 +59,12 @@ class ControlRepository(GenericRepository[SaphetyApiControl]):
             update_data['sendDate'] = data.get('sended_at')
         if 'requestStatus' in data:
             update_data['requestStatus'] = data.get('requestStatus')
-        if 'requestId' in data:
-            update_data['requestId'] = data.get('requestId')
+        if 'requestStatus' in data:
+            update_data['requestStatus'] = data.get('requestStatus')
+        if 'integrationStatus' in data:
+            update_data['integrationStatus'] = data.get('integrationStatus')
+        if 'notificationStatus' in data:
+            update_data['notificationStatus'] = data.get('notificationStatus')
         if 'financialId' in data:
             update_data['financialId'] = data.get('financialId')
 

@@ -72,13 +72,22 @@ EMAIL_CONFIG = {
 #     EMAIL_COPIES = config_emails.get('send_cc', [])
 
 # Schedule settings
-SCHEDULING = {
-    'ENABLED': config('SCHEDULE_ENABLED', default=True, cast=bool),
+SCHEDULING_PROCESS = {
+    'ENABLED': config('SCHEDULE_PROCESS_ENABLED', default=True, cast=bool),
     # Timetable for scheduling
-    'START_TIME': config('SCHEDULE_START_TIME', default='08:00', cast=str),
-    'END_TIME': config('SCHEDULE_END_TIME', default='18:00', cast=str),
+    'START_TIME': config('SCHEDULE_PROCESS_START_TIME', default='08:00', cast=str),
+    'END_TIME': config('SCHEDULE_PROCESS_END_TIME', default='18:00', cast=str),
     # Execution interval in minutes
-    'INTERVAL_MINUTES': config('SCHEDULE_INTERVAL_MINUTES', default=60, cast=int),
+    'INTERVAL_MINUTES': config('SCHEDULE_PROCESS_INTERVAL_MINUTES', default=60, cast=int),
+}
+
+SCHEDULING_CHECK_STATUS = {
+    'ENABLED': config('SCHEDULE_CHECK_STATUS_ENABLED', default=True, cast=bool),
+    # Timetable for scheduling
+    'START_TIME': config('SCHEDULE_CHECK_STATUS_START_TIME', default='08:00', cast=str),
+    'END_TIME': config('SCHEDULE_CHECK_STATUS_END_TIME', default='18:00', cast=str),
+    # Execution interval in minutes
+    'INTERVAL_MINUTES': config('SCHEDULE_CHECK_STATUS_INTERVAL_MINUTES', default=60, cast=int),
 }
 
 # Namespaces definitions (essential for CIUS-PT)

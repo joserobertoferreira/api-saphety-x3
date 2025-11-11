@@ -21,6 +21,17 @@ class TaxLevelCode(IntEnum):
     ISE = 0
 
 
+class HttpRequestType(IntEnum):
+    """
+    Enum to represent HTTP request types.
+    """
+
+    GET = 1
+    POST = 2
+    PUT = 3
+    DELETE = 4
+
+
 # X3 Local Menus
 
 
@@ -102,3 +113,24 @@ class SaphetyRequestStatus(IntEnum):
     RUNNING = 2
     ERROR = 3
     FINISHED = 4
+
+
+class SaphetyIntegrationStatus(IntEnum):
+    """X3 local menu 1003"""
+
+    NOT_INTEGRATED = 1
+    NOT_SENT = 2
+    ERROR = 3
+    SENT = 4
+    RECEIVED = 5
+    REJECTED = 6
+    PAID = 7
+
+
+class SaphetyNotificationStatus(IntEnum):
+    """X3 local menu 1004"""
+
+    SENT = 1
+    DELIVERED = 2
+    READ = 3
+    ERROR = 4

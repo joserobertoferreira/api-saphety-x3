@@ -35,6 +35,51 @@ class GenericRepository(Generic[ModelType]):
         """
         self.model = model
 
+    def _build_filters(self, model: Type[Base], where_clauses: dict[str, tuple[str, Any]]) -> list[Any]:  # noqa: PLR0912, PLR6301
+        """
+        Traduz um dicionário de condições em uma lista de filtros do SQLAlchemy ORM.
+        Ex: {"id": ("=", 1), "status": ("IN", ["A", "B"])}
+        """
+        filters = []
+        if not where_clauses:
+            return filters
+
+        for column_name, (operator, value) in where_clauses.items():
+            column_attr = getattr(model, column_name, None)
+
+            if column_attr is None:
+                raise AttributeError(f"O modelo '{model.__name__}' não possui o atributo '{column_name}'.")
+
+            op = operator.upper()
+            if op == '=':
+                filters.append(column_attr == value)
+            elif op == '!=':
+                filters.append(column_attr != value)
+            elif op == '>':
+                filters.append(column_attr > value)
+            elif op == '<':
+                filters.append(column_attr < value)
+            elif op == '>=':
+                filters.append(column_attr >= value)
+            elif op == '<=':
+                filters.append(column_attr <= value)
+            elif op == 'IN':
+                filters.append(column_attr.in_(value))
+            elif op == 'NOT IN':
+                filters.append(column_attr.not_in(value))
+            elif op == 'LIKE':
+                filters.append(column_attr.like(value))
+            elif op == 'ILIKE':  # Case-insensitive LIKE
+                filters.append(column_attr.ilike(value))
+            elif op == 'IS NULL':
+                filters.append(column_attr.is_(None))
+            elif op == 'IS NOT NULL':
+                filters.append(column_attr.is_not(None))
+            else:
+                raise ValueError(f"Operador '{op}' não suportado.")
+
+        return filters
+
     def get_by_id(self, session: Session, id: Any) -> Optional[ModelType]:
         """
         Busca um único registo pela sua chave primária.
@@ -55,15 +100,17 @@ class GenericRepository(Generic[ModelType]):
     def find(
         self,
         session: Session,
-        filters: Optional[dict[str, Any]] = None,
+        # filters: Optional[dict[str, Any]] = None,
         columns_to_load: Optional[list[str]] = None,
+        where_clauses: Optional[dict[str, tuple[str, Any]]] = None,
+        order_by: Optional[list[str]] = None,
+        limit: Optional[int] = None,
     ) -> list[ModelType]:
         """
         Método de busca genérico com filtros e seleção de colunas.
 
-        Este método é ideal para queries simples com filtros de igualdade (ex: WHERE id=5 AND status='A').
-        Para JOINs ou filtros complexos (ex: LIKE, IN, <, >), um método
-        especializado no repositório filho é recomendado.
+        Traduz um dicionário de condições em uma lista de filtros do SQLAlchemy ORM.
+        Ex: {"id": ("=", 1), "status": ("IN", ["A", "B"])}
 
         Args:
             session: A sessão SQLAlchemy ativa.
@@ -71,22 +118,45 @@ class GenericRepository(Generic[ModelType]):
                      Ex: {'company': 'C01', 'status': 1}
             columns_to_load: Lista opcional de nomes de atributos a carregar.
                              Se None, carrega todas as colunas.
+            where_clauses (Dict[str, Tuple[str, Any]], optional): Condições para o WHERE.
+            order_by (List[str], optional): Colunas para ordenação. Use '-' para DESC (ex: ['-data', 'nome']).
+            limit (int, optional): Número máximo de registros a retornar.
 
         Returns:
             Uma lista de objetos do modelo correspondentes aos critérios.
         """
         stmt = select(self.model)
 
+        # Constrói o SELECT
         if columns_to_load:
             # Converte a lista de strings para uma lista de objetos de coluna
             column_objects = [getattr(self.model, col_name) for col_name in columns_to_load]
             stmt = stmt.options(load_only(*column_objects))
 
         # Adiciona filtros (WHERE)
-        if filters:
-            # Converte o dicionário de filtros em condições SQLAlchemy
-            conditions = [getattr(self.model, key) == value for key, value in filters.items()]
-            stmt = stmt.where(*conditions)
+        if where_clauses:
+            filters = self._build_filters(self.model, where_clauses)
+            if filters:
+                stmt = stmt.where(*filters)
+
+        # if filters:
+        #     # Converte o dicionário de filtros em condições SQLAlchemy
+        #     conditions = [getattr(self.model, key) == value for key, value in filters.items()]
+        #     stmt = stmt.where(*conditions)
+
+        # Adiciona ordenação (ORDER BY)
+        if order_by:
+            order_clauses = []
+            for field in order_by:
+                if field.startswith('-'):
+                    order_clauses.append(getattr(self.model, field[1:]).desc())
+                else:
+                    order_clauses.append(getattr(self.model, field).asc())
+            stmt = stmt.order_by(*order_clauses)
+
+        # Adiciona limite (LIMIT / TOP)
+        if limit:
+            stmt = stmt.limit(limit)
 
         result = session.execute(stmt)
         return list(result.scalars().all())

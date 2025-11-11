@@ -9,26 +9,28 @@ from sqlalchemy.orm import Session
 from core.config.settings import API_PASSWORD, API_USER, SERVER_BASE_ADDRESS
 from core.database.database import db
 from core.models.saphety_control import APIControlView
-from core.repositories.company_repository import CompanyRepository
 from core.services.authentication import AuthenticationService
 from core.services.control_service import ControlService
-from core.types.types import ControlArgs, SaphetyResponse, SaphetyResult
+from core.types.types import (
+    ControlArgs,
+    SaphetyResponse,
+    SaphetyResult,
+)
 from core.utils.local_menus import InvoiceType, SaphetyRequestStatus
 from core.utils.xml_handler import XMLHandler
 
 logger = logging.getLogger(__name__)
 
 
-class SaphetyApiClient:
+class SaphetyApiService:
     """
     Um cliente para interagir com a API de submissão de faturas da Saphety.
     """
 
     def __init__(self):
-        self.base_url = SERVER_BASE_ADDRESS
+        self.base_url = f'https://{SERVER_BASE_ADDRESS}/api'
         self.xml_handler = XMLHandler()
         self.auth_service = AuthenticationService()
-        self.company_repo = CompanyRepository()
         self.control_service = ControlService()
 
     def _process_invoices(self, token: str, pending_invoices: list[APIControlView]) -> list[SaphetyResult]:
@@ -42,17 +44,29 @@ class SaphetyApiClient:
             if send_status.get('IsValid'):
                 request_id = send_status.get('Data', '')
 
-                if isinstance(request_id, list):
-                    request_id = request_id[0]
+                if isinstance(request_id, dict):
+                    request_id = request_id.get('CorrelationId', '')
 
-                status = self.request_status(request_id=request_id, token=token)
+                while True:
+                    response = self.request_status(request_id=request_id, token=token)
 
-                if status.get('IsValid'):
-                    logger.info(f'Fatura {invoice.invoiceNumber} enviada com sucesso. RequestId: {request_id}')
-                else:
-                    logger.error(f'Erro ao processar a fatura {invoice.invoiceNumber}: {status.get("Errors")}')
+                    data = response.get('Data', {})
 
-                send_results.append({'invoice_number': invoice.invoiceNumber, 'response': status})
+                    if isinstance(data, dict):
+                        status = data.get('AsyncStatus')
+                        errors = data.get('Errors', [])
+
+                    if status in {'Queued', 'Running'}:
+                        logger.info(f'Fatura {invoice.invoiceNumber} ainda em processamento. Aguardar...')
+                        continue
+
+                    if status == 'Finished':
+                        logger.info(f'Fatura {invoice.invoiceNumber} enviada com sucesso. RequestId: {request_id}')
+                    else:
+                        logger.error(f'Erro ao processar a fatura {invoice.invoiceNumber}: {errors}')
+
+                    send_results.append({'invoice_number': invoice.invoiceNumber, 'response': response})
+                    break
             else:
                 logger.error(f'Erro ao enviar a fatura {invoice.invoiceNumber}: {send_status.get("Errors")}')
                 send_results.append({'invoice_number': invoice.invoiceNumber, 'response': send_status})
@@ -71,7 +85,12 @@ class SaphetyApiClient:
                     data = response.get('Data', None)
 
                     if isinstance(data, dict):
-                        self._handle_with_dict(session=session, invoice_number=invoice_number, data=data)
+                        self._handle_with_dict(
+                            session=session,
+                            invoice_number=invoice_number,
+                            request_id=response.get('CorrelationId', ''),
+                            data=data,
+                        )
                     elif isinstance(data, str):
                         self._handle_with_string(
                             session=session, invoice_number=invoice_number, data=data, response=response
@@ -82,7 +101,7 @@ class SaphetyApiClient:
                 logger.exception('Ocorreu um erro crítico durante o processamento. Fazer rollback...')
                 session.rollback()  # Garante que nenhuma alteração parcial é guardada
 
-    def _handle_with_dict(self, session: Session, invoice_number: str, data: dict) -> None:
+    def _handle_with_dict(self, session: Session, invoice_number: str, request_id: str, data: dict) -> None:
         """Processa a resposta quando o campo 'Data' é um dicionário."""
         async_status = data.get('AsyncStatus', None)
 
@@ -93,17 +112,17 @@ class SaphetyApiClient:
 
             if api_status == SaphetyRequestStatus.FINISHED:
                 updated_data['requestStatus'] = api_status
-                updated_data['requestId'] = data.get('CorrelationId', '')
+                updated_data['requestId'] = request_id
                 updated_data['financialId'] = data.get('OutboundFinancialDocumentId', '')
             elif api_status == SaphetyRequestStatus.ERROR:
                 errors = data.get('Errors', [])
 
                 updated_data['requestStatus'] = api_status
-                updated_data['requestId'] = data.get('CorrelationId', '')
+                updated_data['requestId'] = request_id
                 updated_data['message'] = ', '.join(errors)[:250]
             else:
                 updated_data['requestStatus'] = api_status
-                updated_data['requestId'] = data.get('CorrelationId', '')
+                updated_data['requestId'] = request_id
 
             if async_status == 'Error':
                 self.control_service.log_sending_error(session=session, context=updated_data)
@@ -117,6 +136,7 @@ class SaphetyApiClient:
         if errors:
             updated_data: ControlArgs = {
                 'invoice_number': invoice_number,
+                'requestId': data,
                 'requestStatus': SaphetyRequestStatus.ERROR,
                 'message': ', '.join(errors)[:250],
             }
@@ -124,6 +144,7 @@ class SaphetyApiClient:
         else:
             updated_data: ControlArgs = {
                 'invoice_number': invoice_number,
+                'requestId': data,
                 'requestStatus': SaphetyRequestStatus.QUEUED,
             }
             self.control_service.mark_as_sent(session=session, context=updated_data)
@@ -168,6 +189,8 @@ class SaphetyApiClient:
         Args:
             invoice (APIControlView): A fatura a ser enviada
             token (str): O token de autenticação para a API Saphety
+        Returns:
+            SaphetyResponse: A resposta da API após o envio da fatura
         """
 
         # Verifica se o ficheiro XML existe
@@ -180,8 +203,7 @@ class SaphetyApiClient:
             # Monta os dados para envio
             document_type = 'Invoice' if invoice.category == InvoiceType.INVOICE else 'Credit_Note'
             service_url = (
-                f'https://{self.base_url}/api/CountryFormatAsyncRequest/processDocument/'
-                + f'{invoice.sender}/{document_type}/PT'
+                f'{self.base_url}/CountryFormatAsyncRequest/processDocument/{invoice.sender}/{document_type}/PT'
             )
             headers = {'Content-Type': 'application/xml', 'Authorization': f'bearer {token}'}
 
@@ -210,9 +232,11 @@ class SaphetyApiClient:
         Args:
             request_id (str): O ID de correlação retornado pela API ao enviar a fatura
             token (str): O token de autenticação para a API Saphety
+        Returns:
+            SaphetyResponse: A resposta da API com o estado do processamento
         """
 
-        service_url = f'https://{self.base_url}/api/CountryFormatAsyncRequest/{request_id}'
+        service_url = f'{self.base_url}/CountryFormatAsyncRequest/{request_id}'
         headers = {'Authorization': f'bearer {token}'}
 
         try:
