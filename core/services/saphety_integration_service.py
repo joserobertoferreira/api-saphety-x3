@@ -16,7 +16,7 @@ from core.types.types import (
     SaphetyIntegrationResponse,
     SaphetyIntegrationResult,
 )
-from core.utils.local_menus import SaphetyIntegrationStatus
+from core.utils.local_menus import SaphetyIntegrationStatus, SaphetyNotificationStatus
 from core.utils.xml_handler import XMLHandler
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,7 @@ class SaphetyApiIntegrationService:
                             data=data,
                         )
 
+                session.commit()
             except Exception:
                 logger.exception('Ocorreu um erro crítico durante o processamento. Fazer rollback...')
                 session.rollback()  # Garante que nenhuma alteração parcial é guardada
@@ -79,16 +80,21 @@ class SaphetyApiIntegrationService:
 
         notification_status = data.get('NotificationStatus', None)
         integration_status = data.get('IntegrationStatus', None)
+        errors = data.get('Errors', None)
 
-        updated_data: ControlArgs = {'invoice_number': invoice_number, 'requestId': request_id}
+        updated_data: ControlArgs = {
+            'invoice_number': invoice_number,
+            'requestId': request_id,
+            'message': 'Integrado com sucesso' if not errors else '; '.join(errors),
+        }
 
         if notification_status:
-            updated_data['notificationStatus'] = SaphetyIntegrationStatus[notification_status.upper()]
+            updated_data['notificationStatus'] = SaphetyNotificationStatus[notification_status.upper()]
 
         if integration_status:
             updated_data['integrationStatus'] = SaphetyIntegrationStatus[integration_status.upper()]
 
-        self.control_service.mark_as_sent(session=session, context=updated_data)
+        self.control_service.update_integration_status(session=session, context=updated_data)
 
     def verify_invoice_status(self, invoice_id: str | None = None) -> None:
         """

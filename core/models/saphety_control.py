@@ -39,6 +39,7 @@ class APIControlView(Base):
 
     invoiceNumber: Mapped[str] = mapped_column('INVNUM_0', Unicode(20, collation=DB_COLLATION))
     category: Mapped[int] = mapped_column('INVTYP_0', TINYINT)
+    invoiceDate: Mapped[datetime.date] = mapped_column('INVDAT_0', Date)
     filename: Mapped[str] = mapped_column('FICHIER_0', Unicode(255, collation=DB_COLLATION))
     sendDate: Mapped[datetime.date] = mapped_column('SNDDAT_0', Date)
     message: Mapped[str] = mapped_column('MSGAPI_0', Unicode(255, collation=DB_COLLATION))
@@ -53,4 +54,5 @@ class APIControlView(Base):
     company: Mapped[str] = mapped_column('CPY_0', Unicode(5, collation=DB_COLLATION))
     sender: Mapped[str] = mapped_column('SENDER_0', Unicode(20, collation=DB_COLLATION))
     receiver: Mapped[str] = mapped_column('RECEIVER_0', Unicode(20, collation=DB_COLLATION))
+    customer: Mapped[str] = mapped_column('BPCNUM_0', Unicode(15, collation=DB_COLLATION))
     saphetyType: Mapped[int] = mapped_column('SAPHTYP_0', TINYINT)
