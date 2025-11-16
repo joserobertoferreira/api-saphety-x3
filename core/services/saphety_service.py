@@ -42,31 +42,39 @@ class SaphetyApiService:
 
             # Verifica o resultado do envio
             if send_status.get('IsValid'):
-                request_id = send_status.get('Data', '')
+                correlation_id = send_status.get('CorrelationId', '')
+                request_id = send_status.get('Data', None)
 
                 if isinstance(request_id, dict):
-                    request_id = request_id.get('CorrelationId', '')
+                    request_id = None
 
-                while True:
+                while True and request_id:
                     response = self.request_status(request_id=request_id, token=token)
 
-                    data = response.get('Data', {})
+                    if response.get('IsValid'):
+                        data = response.get('Data', None)
 
-                    if isinstance(data, dict):
-                        status = data.get('AsyncStatus')
-                        errors = data.get('Errors', [])
+                        if isinstance(data, dict):
+                            status = data.get('AsyncStatus')
+                            errors = data.get('Errors', [])
 
-                    if status in {'Queued', 'Running'}:
-                        logger.info(f'Fatura {invoice.invoiceNumber} ainda em processamento. Aguardar...')
-                        continue
+                        if status in {'Queued', 'Running'}:
+                            logger.info(f'Fatura {invoice.invoiceNumber} ainda em processamento. Aguardar...')
+                            continue
 
-                    if status == 'Finished':
-                        logger.info(f'Fatura {invoice.invoiceNumber} enviada com sucesso. RequestId: {request_id}')
+                        if status == 'Finished':
+                            logger.info(
+                                f'Fatura {invoice.invoiceNumber} enviada com sucesso. RequestId: {correlation_id}'
+                            )
+                        else:
+                            logger.error(f'Erro ao processar a fatura {invoice.invoiceNumber}: {errors}')
+
+                        send_results.append({'invoice_number': invoice.invoiceNumber, 'response': response})
+                        break
                     else:
-                        logger.error(f'Erro ao processar a fatura {invoice.invoiceNumber}: {errors}')
-
-                    send_results.append({'invoice_number': invoice.invoiceNumber, 'response': response})
-                    break
+                        logger.error(f'Erro ao enviar a fatura {invoice.invoiceNumber}: {response.get("Errors")}')
+                        send_results.append({'invoice_number': invoice.invoiceNumber, 'response': response})
+                        break
             else:
                 logger.error(f'Erro ao enviar a fatura {invoice.invoiceNumber}: {send_status.get("Errors")}')
                 send_results.append({'invoice_number': invoice.invoiceNumber, 'response': send_status})
@@ -82,9 +90,19 @@ class SaphetyApiService:
                 for result in send_results:
                     invoice_number = result.get('invoice_number')
                     response = result.get('response')
+                    errors = response.get('Errors', [])
                     data = response.get('Data', None)
 
-                    if isinstance(data, dict):
+                    if errors:
+                        logger.error(f'Erro ao processar a fatura {invoice_number}: {errors}')
+
+                        self._handle_with_list(
+                            session=session,
+                            invoice_number=invoice_number,
+                            request_id=response.get('CorrelationId', ''),
+                            errors=errors,
+                        )
+                    elif isinstance(data, dict):
                         self._handle_with_dict(
                             session=session,
                             invoice_number=invoice_number,
@@ -101,6 +119,16 @@ class SaphetyApiService:
                 logger.exception('Ocorreu um erro crítico durante o processamento. Fazer rollback...')
                 session.rollback()  # Garante que nenhuma alteração parcial é guardada
 
+    def _handle_with_list(self, session: Session, invoice_number: str, request_id: str, errors: list[str]) -> None:
+        """Processa a resposta quando existem erros na lista."""
+        updated_data: ControlArgs = {
+            'invoice_number': invoice_number,
+            'requestId': request_id,
+            'requestStatus': SaphetyRequestStatus.ERROR,
+            'message': ', '.join(errors)[:250],
+        }
+        self.control_service.log_sending_error(session=session, context=updated_data)
+
     def _handle_with_dict(self, session: Session, invoice_number: str, request_id: str, data: dict) -> None:
         """Processa a resposta quando o campo 'Data' é um dicionário."""
         async_status = data.get('AsyncStatus', None)
@@ -108,21 +136,17 @@ class SaphetyApiService:
         if async_status in {'Queued', 'Running', 'Error', 'Finished'}:
             api_status = SaphetyRequestStatus[async_status.upper()]
 
-            updated_data: ControlArgs = {'invoice_number': invoice_number}
+            updated_data: ControlArgs = {
+                'invoice_number': invoice_number,
+                'requestId': request_id,
+                'requestStatus': api_status,
+            }
 
             if api_status == SaphetyRequestStatus.FINISHED:
-                updated_data['requestStatus'] = api_status
-                updated_data['requestId'] = request_id
                 updated_data['financialId'] = data.get('OutboundFinancialDocumentId', '')
             elif api_status == SaphetyRequestStatus.ERROR:
                 errors = data.get('Errors', [])
-
-                updated_data['requestStatus'] = api_status
-                updated_data['requestId'] = request_id
                 updated_data['message'] = ', '.join(errors)[:250]
-            else:
-                updated_data['requestStatus'] = api_status
-                updated_data['requestId'] = request_id
 
             if async_status == 'Error':
                 self.control_service.log_sending_error(session=session, context=updated_data)
@@ -168,6 +192,11 @@ class SaphetyApiService:
                 logger.exception('Ocorreu um erro crítico durante o processamento. Fazer rollback...')
                 if 'session' in locals():
                     session.rollback()  # Garante que nenhuma alteração parcial é guardada
+                return
+
+        if not pending_invoices:
+            logger.info('Não há faturas pendentes para enviar.')
+            return
 
         # Obtém um token válido antes de enviar qualquer fatura
         token = self.auth_service.login(API_USER, API_PASSWORD)

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import lxml.etree as etree  # noqa: PLR0402
 
-from core.config.settings import OUTPUT_DIRECTORY
+from core.config.settings import OUTPUT_FOLDER
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class XMLHandler:
         """
 
         # Constrói o caminho completo para o ficheiro de saída
-        output_path = OUTPUT_DIRECTORY / filename
+        output_path = OUTPUT_FOLDER / filename
 
         logger.debug(f'Guardar o XML da fatura {filename} em: {output_path}')
 
@@ -64,14 +64,14 @@ class XMLHandler:
         xml_files = []
 
         if filename:
-            file_path = OUTPUT_DIRECTORY / filename
+            file_path = OUTPUT_FOLDER / filename
             if file_path.exists() and file_path.suffix == '.xml':
                 xml_files.append(file_path)
                 logger.debug(f'Ficheiro XML encontrado: {file_path}')
             else:
                 logger.debug(f'Ficheiro XML não encontrado: {file_path}')
         else:
-            for file in OUTPUT_DIRECTORY.glob('*.xml'):
+            for file in OUTPUT_FOLDER.glob('*.xml'):
                 xml_files.append(file)
                 logger.debug(f'Ficheiro XML encontrado: {file}')
 

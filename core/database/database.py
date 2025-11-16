@@ -6,7 +6,7 @@ from sqlalchemy import MetaData, create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from core.config.settings import DATABASE, DEBUG
+from core.config.settings import DATABASE, SQL_DEBUG
 from core.utils.generics import Generics
 
 # Configurar logging
@@ -72,7 +72,7 @@ DB_CONNECTION_STRING = Generics().build_connection_string(config=DATABASE)
 if DB_CONNECTION_STRING:
     try:
         # Passe echo=True para ver as queries SQL geradas, False para produção
-        db = DatabaseManager(url=DB_CONNECTION_STRING, echo=DEBUG)  # type: ignore
+        db = DatabaseManager(url=DB_CONNECTION_STRING, echo=SQL_DEBUG)  # type: ignore
         logger.info('DatabaseSessionManager initialized successfully.')
     except ValueError as ve:  # Erro específico da nossa validação de URL
         logger.error(f'Configuration Error: {ve}')

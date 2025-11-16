@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any
 
-from core.config.settings import DATABASE
+from core.config.settings import DATABASE, DEBUG, INPUT_PDF_FOLDER
 from core.database.database import db
 from core.database.database_core import DatabaseCoreManager
 from core.mappers.base_mapper import BaseMapper
@@ -59,21 +59,24 @@ class MopMapper(BaseMapper):
             #     case _:
             #         scheme_id = 'AIM'
 
-            # Cria uma instância do DatabaseCoreManager
-            db_core = DatabaseCoreManager(db_manager=db)
-
             filename = ''.join(c for c in invoice.invoiceNumber if c.isalnum())
 
-            # Buscar localização do ficheiro pdf da fatura
-            filters = {'PARAM_0': ('=', 'PDFFLD')}
+            if not DEBUG:
+                # Cria uma instância do DatabaseCoreManager
+                db_core = DatabaseCoreManager(db_manager=db)
 
-            result = db_core.execute_query(table='ADOVAL', columns=['VALEUR_0'], where_clauses=filters)
+                # Buscar localização do ficheiro pdf da fatura
+                filters = {'PARAM_0': ('=', 'PDFFLD')}
 
-            if not result and result.get('status') != 'success' and result.get('records', 0) == 0:
-                return None
+                result = db_core.execute_query(table='ADOVAL', columns=['VALEUR_0'], where_clauses=filters)
 
-            data_row = result['data'][0]
-            pdf_folder = Path(data_row.get('VALEUR_0').strip().replace('$1$', DATABASE.get('SCHEMA')))
+                if not result and result.get('status') != 'success' and result.get('records', 0) == 0:
+                    return None
+
+                data_row = result['data'][0]
+                pdf_folder = Path(data_row.get('VALEUR_0').strip().replace('$1$', DATABASE.get('SCHEMA')))
+            else:
+                pdf_folder = Path(INPUT_PDF_FOLDER)
 
             # Converte o ficheiro para base64
             pdf_base64 = Conversions.convert_file_to_base64(str(pdf_folder), f'{filename}.pdf')

@@ -1,0 +1,49 @@
+# Imagem Base: Usamos uma imagem oficial do Windows Server Core com Python
+# Escolha uma tag que corresponda à versão do seu servidor (ltsc2019)
+FROM python:3.12-windowsservercore
+
+# Define o shell padrão para todas as instruções RUN como PowerShell
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Instala o Chocolatey (gerenciador de pacotes para Windows)
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
+  [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+  iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Instala o driver ODBC da Microsoft para SQL Server
+RUN choco install sqlserver-odbcdriver-17 -y
+
+# Verifica os drivers instalados
+RUN Get-OdbcDriver
+
+# Define um argumento de build para o perfil do cliente
+ARG CUSTOMER_PROFILE=default
+
+# Define o diretório de trabalho
+WORKDIR /app
+
+# Instala o 'uv'
+RUN pip install uv
+
+# Copia e instala as dependências
+COPY requirements.txt requirements-dev.txt ./
+RUN uv pip install --system --no-cache-dir -r requirements.txt
+
+# Copia o código da sua aplicação para o contêiner
+
+# Copia o código do "core"
+COPY core/ /app/core/
+
+# Copia os scripts da raiz
+COPY pyproject.toml /app/
+COPY run_*.py /app/
+
+# Copia os específicos do perfil de cliente
+COPY customer_mappers/${CUSTOMER_PROFILE}/ /app/customer_mappers/${CUSTOMER_PROFILE}/
+
+# Copia o mapper default (comum a todos os clientes)
+COPY customer_mappers/__init__.py /app/customer_mappers/
+COPY customer_mappers/default/ /app/customer_mappers/default/
+
+# Define o comando padrão
+CMD ["python", "run_service.py"]

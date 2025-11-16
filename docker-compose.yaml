@@ -1,0 +1,10 @@
+services:
+  api-faturas-service:
+    image: sage-saphety-mop/api-faturas:latest
+    container_name: api-faturas-service
+    restart: always
+    env_file:
+      - ./.env
+    volumes:
+      - ./core/output:C:/app/core/output
+      - ./logs:C:/app/logs

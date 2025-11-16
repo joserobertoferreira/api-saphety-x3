@@ -806,6 +806,7 @@ class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
 
     # Específicos Saphety
     isSaphety: Mapped[int] = mapped_column('YSAPHFLG_0', TINYINT, default=text('((1))'))
+    generatedPdf: Mapped[int] = mapped_column('YPDFFLG_0', SmallInteger, default=text('((0))'))
 
     # Relacionamentos
     customer: Mapped['Customer'] = relationship(

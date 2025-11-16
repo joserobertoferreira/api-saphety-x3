@@ -17,12 +17,23 @@ class ControlRepository(GenericRepository[SaphetyApiControl]):
     Repositório para gerir as operações na tabela de controlo de faturas Saphety.
     """
 
+    _FIELD_MAP = {
+        'status': 'status',
+        'filename': 'filename',
+        'message': 'message',
+        'sendDate': 'sendDate',
+        'requestStatus': 'requestStatus',
+        'integrationStatus': 'integrationStatus',
+        'notificationStatus': 'notificationStatus',
+        'financialId': 'financialId',
+    }
+
     def get_by_invoice_number(self, session: Session, invoice_number: str) -> Optional[SaphetyApiControl]:  # noqa: PLR6301
         """Busca um registo de controlo pelo número da fatura."""
         stmt = select(SaphetyApiControl).where(SaphetyApiControl.invoiceNumber == invoice_number)
         return session.execute(stmt).scalar_one_or_none()
 
-    def create_or_update_record(self, session: Session, data: ControlArgs) -> SaphetyApiControl:
+    def create_or_update_record(self, session: Session, data: ControlArgs) -> SaphetyApiControl:  # noqa: PLR0912
         """
         Cria um novo registo de controlo ou atualiza um existente.
 
@@ -47,26 +58,7 @@ class ControlRepository(GenericRepository[SaphetyApiControl]):
         logger.debug(f'Criar/atualizar registo de controlo para a fatura {invoice_number}.')
 
         # Unpack the control arguments
-        update_data = {}
-
-        if 'status' in data:
-            update_data['status'] = data.get('status')
-        if 'filename' in data:
-            update_data['filename'] = data.get('filename')
-        if 'message' in data:
-            update_data['message'] = data.get('message')
-        if 'sended_at' in data:
-            update_data['sendDate'] = data.get('sended_at')
-        if 'requestStatus' in data:
-            update_data['requestStatus'] = data.get('requestStatus')
-        if 'requestStatus' in data:
-            update_data['requestStatus'] = data.get('requestStatus')
-        if 'integrationStatus' in data:
-            update_data['integrationStatus'] = data.get('integrationStatus')
-        if 'notificationStatus' in data:
-            update_data['notificationStatus'] = data.get('notificationStatus')
-        if 'financialId' in data:
-            update_data['financialId'] = data.get('financialId')
+        update_data = {self._FIELD_MAP[key]: value for key, value in data.items() if key in self._FIELD_MAP}
 
         # Tenta encontrar um registo existente
         control_record = self.get_by_invoice_number(session, invoice_number)
@@ -80,7 +72,11 @@ class ControlRepository(GenericRepository[SaphetyApiControl]):
             # Se não existe, cria um novo
             logger.debug('Nenhum registo existente. Criar novo.')
             update_data['invoiceNumber'] = invoice_number
-            control_record = SaphetyApiControl(**update_data)
+
+            # Remove chaves com valor None para não sobrepor defaults do modelo
+            init_data = {k: v for k, v in update_data.items() if v is not None}
+
+            control_record = SaphetyApiControl(**init_data)
             session.add(control_record)
 
         return control_record

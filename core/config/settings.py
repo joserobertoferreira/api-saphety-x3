@@ -8,6 +8,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 CLIENT_DIR = BASE_DIR / 'setup'
 
+# eNvironment variables and settings
+PRODUCTION = config('PRODUCTION', default=False, cast=bool)
+
 # Database connection parameters
 DATABASE = {
     'SERVER': str(config('DB_SERVER', default=' ', cast=str)),
@@ -26,8 +29,14 @@ DATABASE_URL = (
 
 DB_COLLATION = str(config('DB_COLLATION', default='Latin1_General_BIN2', cast=str))
 
+if PRODUCTION:
+    LOGS_SUBFOLDER = Path('EDI') / 'ERRORS'
+else:
+    LOGS_SUBFOLDER = 'logs'
+
 # Debug mode
 DEBUG = config('DEBUG', default=True, cast=bool)
+SQL_DEBUG = config('SQL_DEBUG', default=True, cast=bool)
 
 # API connection parameters
 SERVER_BASE_ADDRESS = str(config('SERVER_BASE_ADDRESS', default=' ', cast=str))
@@ -36,7 +45,7 @@ API_USER = str(config('API_USER', default=' ', cast=str))
 API_PASSWORD = str(config('API_PASSWORD', default=' ', cast=str))
 
 # Logging configuration
-LOG_DIR = 'logs'
+LOG_DIR = BASE_DIR / DATABASE['SCHEMA'] / LOGS_SUBFOLDER
 LOG_ROOT_LEVEL = 'DEBUG'
 LOG_CONSOLE_LEVEL = 'INFO'
 LOG_INFO_FILE_ENABLED = True
@@ -102,14 +111,23 @@ NSMAP = {
 }
 NS_ESPAP = 'urn:cen.eu:en16931:2017#compliant#urn:feap.gov.pt:CIUS-PT:2.0.0'
 
-# Directory to save generated XML files
-XML_DIRECTORY = str(config('OUTPUT_DIRECTORY', default='output', cast=str))
+# Folder to save generated XML files
+XML_FOLDER = str(config('OUTPUT_FOLDER', default='output', cast=str))
 
-if XML_DIRECTORY is not None:
-    OUTPUT_DIRECTORY = BASE_DIR / XML_DIRECTORY
+if XML_FOLDER is not None:
+    OUTPUT_FOLDER = BASE_DIR / XML_FOLDER
 
-if not Path(OUTPUT_DIRECTORY).exists():
-    Path(OUTPUT_DIRECTORY).mkdir(parents=True, exist_ok=True)
+if not Path(OUTPUT_FOLDER).exists():
+    Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
+
+# Folder to get pdf files
+PDF_FOLDER = str(config('PDF_FOLDER', default='output', cast=str))
+
+if PDF_FOLDER is not None:
+    INPUT_PDF_FOLDER = BASE_DIR / PDF_FOLDER / 'TMOPX3' / 'PDF'
+
+if not Path(INPUT_PDF_FOLDER).exists():
+    Path(INPUT_PDF_FOLDER).mkdir(parents=True, exist_ok=True)
 
 # Other settings
 CLEANUP_FILENAMES = ('-', '_')  # Characters to clean from filenames
