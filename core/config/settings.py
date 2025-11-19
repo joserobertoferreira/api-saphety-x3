@@ -103,13 +103,19 @@ SCHEDULING_CHECK_STATUS = {
 # These are the default namespaces for UBL 2.1
 NS_CBC = 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2'
 NS_CAC = 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2'
-NS_ROOT = 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'
-NSMAP = {
-    'ubl': NS_ROOT,
+NS_ROOT_FT = 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'
+NSMAP_FT = {
+    'ubl': NS_ROOT_FT,
     'cac': NS_CAC,
     'cbc': NS_CBC,
 }
-NS_ESPAP = 'urn:cen.eu:en16931:2017#compliant#urn:feap.gov.pt:CIUS-PT:2.0.0'
+NS_ROOT_NC = 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2'
+NSMAP_NC = {
+    'ubl': NS_ROOT_NC,
+    'cac': NS_CAC,
+    'cbc': NS_CBC,
+}
+NS_ESPAP = 'urn:cen.eu:en16931:2017#compliant#urn:feap.gov.pt:CIUS-PT:2.1.1'
 
 # Folder to save generated XML files
 XML_FOLDER = str(config('OUTPUT_FOLDER', default='output', cast=str))

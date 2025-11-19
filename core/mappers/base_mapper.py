@@ -1,8 +1,16 @@
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
+import lxml.etree as etree  # noqa: PLR0402
+
+from core.config.settings import NS_CAC, NS_CBC
 from core.models.sales_invoice import SalesInvoice
-from core.types.types import OrderReference
-from core.utils.local_menus import InvoiceOrigin
+from core.types.types import InvoiceXmlData, OrderReference
+from core.utils.conversions import Conversions
+from core.utils.local_menus import InvoiceOrigin, InvoiceType, TaxLevelCode
+
+if TYPE_CHECKING:
+    from core.utils.generics import Generics
 
 
 class BaseMapper:
@@ -61,3 +69,73 @@ class BaseMapper:
         """
 
         return None
+
+    def save_invoice_xml(self, xml_tree: etree._Element, context: InvoiceXmlData) -> Path | None:  # noqa: PLR6301
+        """
+        Salva o conteúdo XML gerado em um ficheiro.
+
+        O comportamento padrão é salvar o ficheiro no diretório atual.
+
+        Args:
+            xml_content: O conteúdo XML a ser salvo.
+            context: Informações adicionais sobre a fatura para nomeação do ficheiro.
+        """
+
+        return None
+
+    def build_invoice_line(self, parent: etree._Element, currency: str, category: int, detail: Any) -> None:  # noqa: PLR6301
+        """
+        Constrói a linha da fatura no XML.
+
+        Permite customizar a construção da linha da fatura (<cac:InvoiceLine>).
+
+        Args:
+            parent: O elemento pai no XML onde a linha será adicionada.
+            currency: A moeda usada na fatura.
+            category: A categoria da fatura (fatura, nota de crédito, etc.).
+            detail: O detalhe específico da linha da fatura.
+        """
+
+        # Bloco Principal <cac:InvoiceLine>
+        if category == InvoiceType.INVOICE:
+            label = ('Invoice', 'InvoicedQuantity')
+        else:
+            label = ('CreditNote', 'CreditedQuantity')
+
+        line_item = etree.SubElement(parent, f'{{{NS_CAC}}}{label[0]}Line')
+
+        # ID da Linha
+        etree.SubElement(line_item, f'{{{NS_CBC}}}ID').text = str(int(detail.lineNumber / 1000))
+
+        # Quantidade Faturada
+        etree.SubElement(line_item, f'{{{NS_CBC}}}{label[1]}', unitCode='C62').text = str(
+            str(Conversions.convert_value(detail.quantityInSalesUnit, precision=2))
+        )
+
+        # Valor Líquido da Linha (sem impostos)
+        etree.SubElement(
+            line_item, f'{{{NS_CBC}}}LineExtensionAmount', {'currencyID': currency}
+        ).text = Conversions.format_monetary(detail.lineAmountExcludingTax)
+
+        # Detalhes do Item <cac:Item>
+        item = etree.SubElement(line_item, f'{{{NS_CAC}}}Item')
+
+        etree.SubElement(item, f'{{{NS_CBC}}}Name').text = detail.productDescriptionUserLanguage.strip()
+
+        # Imposto do Item
+        tax_category = etree.SubElement(item, f'{{{NS_CAC}}}ClassifiedTaxCategory')
+
+        # Converte o código interno para o código de categoria CIUS ('NOR', 'RED', 'INT', etc.)
+        cius_code = Generics.get_enum_name(TaxLevelCode, int(detail.taxRates))
+
+        etree.SubElement(tax_category, f'{{{NS_CBC}}}ID').text = cius_code
+        etree.SubElement(tax_category, f'{{{NS_CBC}}}Percent').text = Conversions.format_monetary(detail.taxRates)
+
+        tax_scheme = etree.SubElement(tax_category, f'{{{NS_CAC}}}TaxScheme')
+        etree.SubElement(tax_scheme, f'{{{NS_CBC}}}ID').text = 'VAT'
+
+        # Preço do Item <cac:Price>
+        price = etree.SubElement(line_item, f'{{{NS_CAC}}}Price')
+        etree.SubElement(
+            price, f'{{{NS_CBC}}}PriceAmount', {'currencyID': currency}
+        ).text = Conversions.format_monetary(detail.netPrice)

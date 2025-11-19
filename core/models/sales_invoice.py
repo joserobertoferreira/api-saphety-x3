@@ -799,9 +799,9 @@ class SalesInvoice(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):
     hasElectronicSignature: Mapped[int] = mapped_column('SIHCFMFLG_0', TINYINT, default=text('((0))'))
 
     # Específicos MOP
-    campaignStartDate: Mapped[datetime.datetime] = mapped_column(
-        'ZDATACAMP_0', DateTime, default=DEFAULT_LEGACY_DATETIME
-    )
+    # campaignStartDate: Mapped[datetime.datetime] = mapped_column(
+    #     'ZDATACAMP_0', DateTime, default=DEFAULT_LEGACY_DATETIME
+    # )
     customerReference: Mapped[str] = mapped_column('YVREF_0', Unicode(250, collation=DB_COLLATION), default=text("''"))
 
     # Específicos Saphety
@@ -1171,6 +1171,12 @@ class SalesInvoiceDetail(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixi
     reinvoicing: Mapped[int] = mapped_column('INVCNDUPD_0', TINYINT, default=text('((0))'))
     reinvoicingDate: Mapped[datetime.datetime] = mapped_column('NEXINVDAT_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
     scheduledInvoices: Mapped[str] = mapped_column('SVICNUM_0', Unicode(20, collation=DB_COLLATION), default=text("''"))
+
+    # Específicos MOP
+    startPeriod: Mapped[datetime.datetime] = mapped_column('YPERINI_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
+    endPeriod: Mapped[datetime.datetime] = mapped_column('YPERFIN_0', DateTime, default=DEFAULT_LEGACY_DATETIME)
+    itemDescription: Mapped[str] = mapped_column('YITMDES_0', Unicode(100, collation=DB_COLLATION), default=text("''"))
+    campaign: Mapped[str] = mapped_column('YCAMPANHA_0', Unicode(40, collation=DB_COLLATION), default=text("''"))
 
 
 class SalesInvoiceTax(Base, AuditMixin, PrimaryKeyMixin, CreateUpdateDateMixin):

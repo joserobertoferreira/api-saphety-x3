@@ -2,12 +2,9 @@ import importlib
 import logging
 import platform
 from enum import Enum
-from pathlib import Path
-from typing import Any, Optional, Type
+from typing import Optional, Type
 
-import pandas as pd
 import sqlalchemy as sa
-import yaml
 
 from core.config import settings
 from core.mappers.base_mapper import BaseMapper
@@ -15,8 +12,6 @@ from customer_mappers.default.mapper import DefaultMapper
 
 # Configurar logging
 logger = logging.getLogger(__name__)
-
-MULTI_PAYMENTS = 9
 
 
 class Generics:
@@ -78,78 +73,48 @@ class Generics:
         logger.info(f'String de conexão criada: {conn_str}')
         return conn_str
 
-    @staticmethod
-    def load_config_yaml(file_path='emails.yaml') -> dict:
-        """
-        Load configuration from a YAML file.
-        :param file_path: Path to the YAML file.
-        :return: Dictionary with the loaded configuration.
-        """
-        full_path = settings.CLIENT_DIR / file_path
-        if not full_path.exists():
-            logger.error(f'Arquivo de configuração {file_path} não encontrado em {settings.CLIENT_DIR}.')
-            return {}
+    # @staticmethod
+    # def load_config_yaml(file_path='emails.yaml') -> dict:
+    #     """
+    #     Load configuration from a YAML file.
+    #     :param file_path: Path to the YAML file.
+    #     :return: Dictionary with the loaded configuration.
+    #     """
+    #     full_path = settings.CLIENT_DIR / file_path
+    #     if not full_path.exists():
+    #         logger.error(f'Arquivo de configuração {file_path} não encontrado em {settings.CLIENT_DIR}.')
+    #         return {}
 
-        try:
-            with open(full_path, 'r', encoding='utf-8') as file:
-                return yaml.safe_load(file)
-        except Exception as e:
-            logger.error(f'Erro ao carregar configuração de {file_path}: {e}')
-            return {}
+    #     try:
+    #         with open(full_path, 'r', encoding='utf-8') as file:
+    #             return yaml.safe_load(file)
+    #     except Exception as e:
+    #         logger.error(f'Erro ao carregar configuração de {file_path}: {e}')
+    #         return {}
 
-    @staticmethod
-    def create_csv_file(df: pd.DataFrame, file_path: Path) -> None:
-        """Create a CSV file from a DataFrame."""
-        try:
-            # Garante que o diretório pai do arquivo existe
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            df.to_csv(file_path, index=False, sep=';', encoding='utf-8')
-            logger.info(f'CSV file created at {file_path}')
-        except Exception as e:
-            logger.error(f'Failed to create CSV file at {file_path}: {e}')
-            raise  # Re-lança a exceção para que o chamador saiba que falhou
+    # @staticmethod
+    # def create_csv_file(df: pd.DataFrame, file_path: Path) -> None:
+    #     """Create a CSV file from a DataFrame."""
+    #     try:
+    #         # Garante que o diretório pai do arquivo existe
+    #         file_path.parent.mkdir(parents=True, exist_ok=True)
+    #         df.to_csv(file_path, index=False, sep=';', encoding='utf-8')
+    #         logger.info(f'CSV file created at {file_path}')
+    #     except Exception as e:
+    #         logger.error(f'Failed to create CSV file at {file_path}: {e}')
+    #         raise  # Re-lança a exceção para que o chamador saiba que falhou
 
-    @staticmethod
-    def create_xlsx_file(df: pd.DataFrame, file_path: Path) -> None:
-        """Create an XLSX file from a DataFrame."""
-        try:
-            # Garante que o diretório pai do arquivo existe
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            df.to_excel(file_path, index=False, sheet_name='Diferenças', engine='openpyxl')
-            logger.info(f'XLSX file created at {file_path}')
-        except Exception as e:
-            logger.error(f'Failed to create XLSX file at {file_path}: {e}')
-            raise  # Re-lança a exceção para que o chamador saiba que falhou
-
-    @staticmethod
-    def is_api_client(data: Any) -> bool:
-        """Check if the data is an instance of ApiClient."""
-
-        # Verifica se o dado é um dicionário
-        if not isinstance(data, dict):
-            return False
-
-        # Verifica se todas as chaves obrigatórias estão presentes
-        required_keys = {'company_code', 'client_id', 'store', 'site', 'zone'}
-
-        if not required_keys.issubset(data.keys()):
-            return False
-
-        # Verifica se os tipos das chaves obrigatórias estão corretos
-        if (
-            not isinstance(data['company_code'], str)
-            or not isinstance(data['client_id'], str)
-            or not isinstance(data['store'], int)
-            or not isinstance(data['site'], str)
-            or not isinstance(data['zone'], str)
-        ):
-            return False
-        if not isinstance(data['store'], int):
-            return False
-        if 'process' in data and not isinstance(data['process'], str):
-            return False
-
-        return True
+    # @staticmethod
+    # def create_xlsx_file(df: pd.DataFrame, file_path: Path) -> None:
+    #     """Create an XLSX file from a DataFrame."""
+    #     try:
+    #         # Garante que o diretório pai do arquivo existe
+    #         file_path.parent.mkdir(parents=True, exist_ok=True)
+    #         df.to_excel(file_path, index=False, sheet_name='Diferenças', engine='openpyxl')
+    #         logger.info(f'XLSX file created at {file_path}')
+    #     except Exception as e:
+    #         logger.error(f'Failed to create XLSX file at {file_path}: {e}')
+    #         raise  # Re-lança a exceção para que o chamador saiba que falhou
 
     @staticmethod
     def get_enum_name(enum_class: Type[Enum], value: int) -> Optional[str]:
@@ -187,7 +152,11 @@ class Generics:
             module_path = 'customer_mappers.default.mapper'
             class_name = 'DefaultMapper'
         else:
-            module_path = f'customer_mappers.{profile_name}.mapper'
+            if settings.PRODUCTION:
+                module_path = 'customer_mappers.mapper'
+            else:
+                module_path = f'customer_mappers.{profile_name}.mapper'
+
             class_name = f'{profile_name.capitalize()}Mapper'
 
         logger.info(f'Carregar o módulo de customização: {module_path}, classe: {class_name}')

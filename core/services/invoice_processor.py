@@ -5,7 +5,16 @@ from decimal import Decimal
 import lxml.etree as etree  # noqa: PLR0402
 from sqlalchemy.orm import Session
 
-from core.config.settings import DEFAULT_LEGACY_DATE, NS_CAC, NS_CBC, NS_ESPAP, NS_ROOT, NSMAP
+from core.config.settings import (
+    DEFAULT_LEGACY_DATE,
+    NS_CAC,
+    NS_CBC,
+    NS_ESPAP,
+    NS_ROOT_FT,
+    NS_ROOT_NC,
+    NSMAP_FT,
+    NSMAP_NC,
+)
 from core.database.database import db
 from core.mappers.base_mapper import BaseMapper
 from core.models.sales_invoice import CustomerInvoiceHeader, SalesInvoice, SalesInvoiceTax
@@ -56,10 +65,13 @@ class InvoiceProcessorService:
         logger.info(f'Construir o XML para a fatura: {invoice.invoiceNumber}')
 
         # Criação do Elemento Raiz
-        root = etree.Element(f'{{{NS_ROOT}}}Invoice', nsmap=NSMAP)
+        if invoice.category == InvoiceType.INVOICE:
+            root = etree.Element(f'{{{NS_ROOT_FT}}}Invoice', nsmap=NSMAP_FT)
+        else:
+            root = etree.Element(f'{{{NS_ROOT_NC}}}CreditNote', nsmap=NSMAP_NC)
 
         # Cabeçalho da Fatura
-        self._header_info(root, invoice, mapper, filename)
+        self._header_info(root, invoice, filename)
 
         # Informação do Fornecedor
         self._supplier_party(root, session, invoice)
@@ -69,6 +81,10 @@ class InvoiceProcessorService:
 
         # Informação de Entrega
         self._add_delivery(root, invoice)
+
+        # Informação de Pagamento
+        if invoice.category == InvoiceType.CREDIT_NOTE:
+            self._add_payment_terms(root, invoice)
 
         # Totais de Impostos
         self._tax_total(root, session, invoice.invoice_header)
@@ -82,7 +98,7 @@ class InvoiceProcessorService:
         logger.debug(f'XML para {invoice.invoiceNumber} construído (em memória).')
         return root
 
-    def _header_info(self, parent: etree._Element, invoice: SalesInvoice, mapper: BaseMapper, filename: str) -> None:  # noqa: PLR6301
+    def _header_info(self, parent: etree._Element, invoice: SalesInvoice, filename: str) -> None:  # noqa: PLR6301
         """
         Trata dos elementos gerais do cabeçalho da fatura.
         """
@@ -97,20 +113,21 @@ class InvoiceProcessorService:
         # Data de Emissão (obrigatório)
         etree.SubElement(parent, f'{{{NS_CBC}}}IssueDate').text = invoice.invoiceDate.strftime('%Y-%m-%d')
 
-        # Data de Vencimento (opcional)
-        if (
-            invoice.invoice_header.dueDateCalculationStartDate
-            and invoice.invoice_header.dueDateCalculationStartDate != DEFAULT_LEGACY_DATE
-        ):
-            etree.SubElement(
-                parent, f'{{{NS_CBC}}}DueDate'
-            ).text = invoice.invoice_header.dueDateCalculationStartDate.strftime('%Y-%m-%d')
+        if invoice.category == InvoiceType.INVOICE:
+            # Data de Vencimento (opcional)
+            if (
+                invoice.invoice_header.dueDateCalculationStartDate
+                and invoice.invoice_header.dueDateCalculationStartDate != DEFAULT_LEGACY_DATE
+            ):
+                etree.SubElement(
+                    parent, f'{{{NS_CBC}}}DueDate'
+                ).text = invoice.invoice_header.dueDateCalculationStartDate.strftime('%Y-%m-%d')
 
-        # Tipo de Documento (obrigatório)
-        # 380 = Fatura | 381 = Nota de Crédito | etc.
-        etree.SubElement(parent, f'{{{NS_CBC}}}InvoiceTypeCode').text = (
-            '380' if invoice.category == InvoiceType.INVOICE else '381'
-        )
+            # Tipo de Documento (obrigatório)
+            # 380 = Fatura | 381 = Nota de Crédito | etc.
+            etree.SubElement(parent, f'{{{NS_CBC}}}InvoiceTypeCode').text = '380'
+        else:
+            etree.SubElement(parent, f'{{{NS_CBC}}}CreditNoteTypeCode').text = '381'
 
         # Moeda do Documento (obrigatório)
         etree.SubElement(parent, f'{{{NS_CBC}}}DocumentCurrencyCode').text = invoice.currency
@@ -118,20 +135,34 @@ class InvoiceProcessorService:
         # Mapeamentos específicos do cliente
 
         # Referência do Comprador (opcional)
-        buyer_reference = mapper.get_buyer_reference(invoice)
+        buyer_reference = self.mapper.get_buyer_reference(invoice)
 
         if buyer_reference:
             etree.SubElement(parent, f'{{{NS_CBC}}}BuyerReference').text = buyer_reference
 
         # Referência do Pedido (opcional)
-        order_reference = mapper.get_order_reference(invoice)
+        order_reference = self.mapper.get_order_reference(invoice)
 
         if order_reference:
             order_ref = etree.SubElement(parent, f'{{{NS_CAC}}}OrderReference')
             etree.SubElement(order_ref, f'{{{NS_CBC}}}ID').text = order_reference['order_number']
 
+        # Referência à Fatura Original (obrigatório para notas de crédito/débito)
+        if invoice.category == InvoiceType.CREDIT_NOTE and invoice.sourceDocumentNumber.strip():
+            # Criação do Bloco BG-3
+            billing_ref = etree.SubElement(parent, f'{{{NS_CAC}}}BillingReference')
+            inv_doc_ref = etree.SubElement(billing_ref, f'{{{NS_CAC}}}InvoiceDocumentReference')
+
+            # BT-25: Número da fatura original
+            etree.SubElement(inv_doc_ref, f'{{{NS_CBC}}}ID').text = invoice.sourceDocumentNumber.strip()
+
+            # BT-26: Data da fatura original (opcional)
+            etree.SubElement(inv_doc_ref, f'{{{NS_CBC}}}IssueDate').text = invoice.sourceDocumentDate.strftime(
+                '%Y-%m-%d'
+            )
+
         # Referência de Documento Adicional (opcional)
-        additional_doc_ref = mapper.get_additional_document_reference(invoice)
+        additional_doc_ref = self.mapper.get_additional_document_reference(invoice)
 
         if additional_doc_ref:
             additional_ref = etree.SubElement(parent, f'{{{NS_CAC}}}AdditionalDocumentReference')
@@ -151,25 +182,6 @@ class InvoiceProcessorService:
                     'filename': additional_doc_ref.get('file_name'),
                 },
             ).text = additional_doc_ref.get('pdf_base64')
-
-        # Referência à Fatura Original (obrigatório para notas de crédito/débito)
-        if invoice.category == InvoiceType.CREDIT_NOTE and invoice.sourceDocumentNumber.strip():  # noqa: PLC1901
-            self._billing_reference(parent, invoice)
-
-    def _billing_reference(self, parent: etree._Element, invoice: SalesInvoice) -> None:  # noqa: PLR6301
-        """
-        Adiciona a referência à fatura original, obrigatório para notas de crédito/débito (BG-3).
-        """
-
-        # Criação do Bloco BG-3
-        billing_ref = etree.SubElement(parent, f'{{{NS_CAC}}}BillingReference')
-        inv_doc_ref = etree.SubElement(billing_ref, f'{{{NS_CAC}}}InvoiceDocumentReference')
-
-        # BT-25: Número da fatura original
-        etree.SubElement(inv_doc_ref, f'{{{NS_CBC}}}ID').text = invoice.sourceDocumentNumber
-
-        # BT-26: Data da fatura original (opcional)
-        etree.SubElement(inv_doc_ref, f'{{{NS_CBC}}}IssueDate').text = invoice.sourceDocumentDate.strftime('%Y-%m-%d')
 
     def _supplier_party(self, parent: etree._Element, session: Session, invoice: SalesInvoice) -> None:
         """Adiciona o bloco de informação do Fornecedor (a sua empresa)."""
@@ -309,6 +321,24 @@ class InvoiceProcessorService:
         etree.SubElement(address, f'{{{NS_CBC}}}PostalZone').text = invoice.shipToCustomerPostalCode.strip()
         country = etree.SubElement(address, f'{{{NS_CAC}}}Country')
         etree.SubElement(country, f'{{{NS_CBC}}}IdentificationCode').text = invoice.shipToCustomerCountry.strip()
+
+    def _add_payment_terms(self, parent: etree._Element, invoice: SalesInvoice) -> None:  # noqa: PLR6301
+        """Adiciona o bloco de Termos de Pagamento (BG-17), obrigatório para notas de crédito."""
+        logger.debug(f'Adicionar o bloco de Termos de Pagamento para a fatura {invoice.invoiceNumber}')
+
+        payment_terms = etree.SubElement(parent, f'{{{NS_CAC}}}PaymentTerms')
+
+        # Descrição dos termos de pagamento
+        etree.SubElement(payment_terms, f'{{{NS_CBC}}}Note').text = invoice.invoice_header.paymentTerm.strip()
+
+        # Data de Vencimento (opcional)
+        if (
+            invoice.invoice_header.dueDateCalculationStartDate
+            and invoice.invoice_header.dueDateCalculationStartDate != DEFAULT_LEGACY_DATE
+        ):
+            etree.SubElement(
+                payment_terms, f'{{{NS_CBC}}}PaymentDueDate'
+            ).text = invoice.invoice_header.dueDateCalculationStartDate.strftime('%Y-%m-%d')
 
     def _legal_monetary_total(self, parent: etree._Element, invoice: CustomerInvoiceHeader) -> None:  # noqa: PLR6301
         """Adiciona o bloco de totais monetários do documento."""
@@ -460,44 +490,9 @@ class InvoiceProcessorService:
         )
 
         for detail in invoice_details:
-            # Bloco Principal <cac:InvoiceLine>
-            line_item = etree.SubElement(parent, f'{{{NS_CAC}}}InvoiceLine')
-
-            # ID da Linha
-            etree.SubElement(line_item, f'{{{NS_CBC}}}ID').text = str(int(detail.lineNumber / 1000))
-
-            # Quantidade Faturada
-            etree.SubElement(line_item, f'{{{NS_CBC}}}InvoicedQuantity', unitCode='C62').text = str(
-                str(Conversions.convert_value(detail.quantityInSalesUnit, precision=2))
+            self.mapper.build_invoice_line(
+                parent=parent, currency=invoice.currency, category=invoice.category, detail=detail
             )
-
-            # Valor Líquido da Linha (sem impostos)
-            etree.SubElement(
-                line_item, f'{{{NS_CBC}}}LineExtensionAmount', {'currencyID': invoice.currency}
-            ).text = Conversions.format_monetary(detail.lineAmountExcludingTax)
-
-            # Detalhes do Item <cac:Item>
-            item = etree.SubElement(line_item, f'{{{NS_CAC}}}Item')
-
-            etree.SubElement(item, f'{{{NS_CBC}}}Name').text = detail.productDescriptionUserLanguage.strip()
-
-            # Imposto do Item
-            tax_category = etree.SubElement(item, f'{{{NS_CAC}}}ClassifiedTaxCategory')
-
-            # Converte o código interno para o código de categoria CIUS ('NOR', 'RED', 'INT', etc.)
-            cius_code = Generics.get_enum_name(TaxLevelCode, int(detail.taxRates))
-
-            etree.SubElement(tax_category, f'{{{NS_CBC}}}ID').text = cius_code
-            etree.SubElement(tax_category, f'{{{NS_CBC}}}Percent').text = Conversions.format_monetary(detail.taxRates)
-
-            tax_scheme = etree.SubElement(tax_category, f'{{{NS_CAC}}}TaxScheme')
-            etree.SubElement(tax_scheme, f'{{{NS_CBC}}}ID').text = 'VAT'
-
-            # Preço do Item <cac:Price>
-            price = etree.SubElement(line_item, f'{{{NS_CAC}}}Price')
-            etree.SubElement(
-                price, f'{{{NS_CBC}}}PriceAmount', {'currencyID': invoice.currency}
-            ).text = Conversions.format_monetary(detail.netPrice)
 
     def process_pending_invoices(self, invoice_id: str | None = None) -> None:
         """
@@ -532,15 +527,27 @@ class InvoiceProcessorService:
                         logger.info(f'Gerar o ficheiro XML para a fatura {invoice.invoiceNumber} como {filename}.xml')
 
                         # Cria o ficheiro XML
-                        save_xml_file = XMLHandler.save_xml_to_file(
+                        xml_file = self.mapper.save_invoice_xml(
                             xml_tree=invoice_xml_tree,
-                            filename=f'{filename}.xml',
+                            context={
+                                'invoice_number': invoice.invoiceNumber,
+                                'company': invoice.company,
+                                'site': invoice.salesSite,
+                                'invoice_date': invoice.invoiceDate,
+                            },
                         )
 
                         # Atualiza o estado da fatura para "Pendente"
-                        self.control_service.mark_as_generated(
-                            session=session, invoice_number=invoice.invoiceNumber, file_path=str(save_xml_file)
-                        )
+                        if xml_file:
+                            self.control_service.mark_as_generated(
+                                session=session, invoice_number=invoice.invoiceNumber, file_path=str(xml_file)
+                            )
+                        else:
+                            self.control_service.log_processing_error(
+                                session=session,
+                                invoice_number=invoice.invoiceNumber,
+                                error='Erro ao salvar o ficheiro XML',
+                            )
 
                     except Exception as e:
                         # Se algo correu mal com ESTA fatura, registamos o erro

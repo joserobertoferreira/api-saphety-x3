@@ -9,10 +9,11 @@ import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload, load_only
-from sqlalchemy.sql import and_, select
+from sqlalchemy.sql import and_, or_, select
 
 from core.models.customer import Customer
 from core.models.sales_invoice import CustomerInvoiceHeader, SalesInvoice, SalesInvoiceDetail, SalesInvoiceTax
+from core.models.saphety_control import SaphetyApiControl
 from core.utils.local_menus import NoYes
 
 logger = logging.getLogger(__name__)
@@ -69,11 +70,11 @@ class SalesInvoiceRepository:
             query.append(customer_loader)
             query.append(header_loader)
 
-            stmt = stmt.options(*query)
+            stmt = stmt.outerjoin(SalesInvoice.control)
 
             conditions = [
                 SalesInvoice.isSaphety == NoYes.YES.value,
-                SalesInvoice.control == None,  # noqa
+                or_(SalesInvoice.control == None, SalesInvoice.control.has(SaphetyApiControl.status.in_([3, 4]))),  # noqa: E711
             ]
 
             if invoice_number:
@@ -82,6 +83,7 @@ class SalesInvoiceRepository:
                 conditions.append(SalesInvoice.invoiceNumber == invoice_number)
 
             stmt = stmt.where(and_(*conditions))
+            stmt = stmt.options(*query)
 
             records = session.execute(stmt).scalars().all()
 

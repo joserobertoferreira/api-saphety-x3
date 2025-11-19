@@ -1,0 +1,4 @@
+2025-11-17 13:26:08,324 - ERROR - core.services.control_service - Registar erro de processamento para a fatura FCL-MOP23/01763.
+2025-11-17 17:58:06,039 - ERROR - core.services.saphety_service - Erro ao enviar a fatura NCC-MOP15/00164: ['Ficheiro XML não encontrado.']
+2025-11-17 17:58:06,039 - ERROR - core.services.saphety_service - Erro ao processar a fatura NCC-MOP15/00164: ['Ficheiro XML não encontrado.']
+2025-11-17 18:13:57,491 - ERROR - core.services.saphety_service - Erro ao processar a fatura NCC-MOP15/00164: []

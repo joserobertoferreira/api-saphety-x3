@@ -46,9 +46,9 @@ class ControlService:
             },
         )
 
-    def log_processing_error(self, session: Session, invoice_number: str, error: Exception):
+    def log_processing_error(self, session: Session, invoice_number: str, error: Exception | str):
         """Regista um erro ocorrido durante o processamento de uma fatura."""
-        logger.error(f'A registar erro de processamento para a fatura {invoice_number}.')
+        logger.error(f'Registar erro de processamento para a fatura {invoice_number}.')
 
         self._update_record(
             session=session,

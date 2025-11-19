@@ -24,27 +24,15 @@ more-itertools==10.8.0
     # via
     #   -r ./requirements.in
     #   inflect
-numpy==2.3.3
-    # via
-    #   -r ./requirements.in
-    #   pandas
-pandas==2.3.3
-    # via -r ./requirements.in
 pip==25.3
     # via -r ./requirements.in
 pyodbc==5.2.0
     # via -r ./requirements.in
 python-dateutil==2.9.0.post0
-    # via
-    #   -r ./requirements.in
-    #   pandas
+    # via -r ./requirements.in
 python-decouple==3.8
     # via -r ./requirements.in
 pytz==2025.2
-    # via
-    #   -r ./requirements.in
-    #   pandas
-pyyaml==6.0.3
     # via -r ./requirements.in
 requests==2.32.5
     # via -r ./requirements.in
@@ -68,9 +56,7 @@ typing-extensions==4.15.0
     #   sqlalchemy
     #   typeguard
 tzdata==2025.2
-    # via
-    #   -r ./requirements.in
-    #   pandas
+    # via -r ./requirements.in
 urllib3==2.5.0
     # via
     #   -r ./requirements.in

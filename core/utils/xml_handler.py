@@ -14,13 +14,14 @@ class XMLHandler:
         pass
 
     @staticmethod
-    def save_xml_to_file(xml_tree: etree._Element, filename: str) -> Path:
+    def save_xml_to_file(xml_tree: etree._Element, file_path: Path | None = None, filename: str = '') -> Path:
         """
         Guarda uma árvore XML num ficheiro na pasta de saída configurada.
 
         Args:
             xml_tree: A árvore de elementos lxml a ser guardada.
-            invoice_number: O número da fatura, usado para nomear o ficheiro.
+            file_path: O caminho completo onde o ficheiro XML será salvo.
+            filename: O nome do ficheiro XML a ser salvo.
 
         Returns:
             O caminho (Path object) para o ficheiro que foi criado.
@@ -30,9 +31,14 @@ class XMLHandler:
         """
 
         # Constrói o caminho completo para o ficheiro de saída
-        output_path = OUTPUT_FOLDER / filename
+        if file_path:
+            output_path = file_path
+        else:
+            output_path = OUTPUT_FOLDER
 
-        logger.debug(f'Guardar o XML da fatura {filename} em: {output_path}')
+        output_path /= filename
+
+        logger.info(f'Guardar o XML da fatura {filename} em: {output_path}')
 
         try:
             # Converte a árvore para bytes com a formatação desejada
@@ -51,11 +57,12 @@ class XMLHandler:
             raise IOError(f'Não foi possível escrever o ficheiro {output_path}: {e}') from e
 
     @staticmethod
-    def check_for_xml_files(filename: str | None = None) -> list[Path]:
+    def check_for_xml_files(file_path: Path | None = None, filename: str | None = None) -> list[Path]:
         """
         Verifica a existência de ficheiros XML na pasta de saída.
 
         Args:
+            file_path (Path | None, optional): Caminho específico para procurar ficheiros XML. Defaults to None.
             filename (str | None, optional): Nome específico do ficheiro a verificar. Defaults to None.
 
         Returns:
@@ -63,15 +70,20 @@ class XMLHandler:
         """
         xml_files = []
 
+        if file_path is None:
+            xml_file_path = OUTPUT_FOLDER
+        else:
+            xml_file_path = file_path
+
         if filename:
-            file_path = OUTPUT_FOLDER / filename
-            if file_path.exists() and file_path.suffix == '.xml':
+            xml_file_path /= filename
+            if xml_file_path.exists() and xml_file_path.suffix == '.xml':
                 xml_files.append(file_path)
                 logger.debug(f'Ficheiro XML encontrado: {file_path}')
             else:
                 logger.debug(f'Ficheiro XML não encontrado: {file_path}')
         else:
-            for file in OUTPUT_FOLDER.glob('*.xml'):
+            for file in xml_file_path.glob('*.xml'):
                 xml_files.append(file)
                 logger.debug(f'Ficheiro XML encontrado: {file}')
 

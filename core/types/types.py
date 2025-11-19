@@ -7,6 +7,13 @@ class OrderReference(TypedDict):
     order_date: datetime.date
 
 
+class InvoiceXmlData(TypedDict):
+    invoice_number: str
+    company: str
+    site: str
+    invoice_date: datetime.date
+
+
 class ControlArgs(TypedDict, total=False):
     invoice_number: str
     status: int
